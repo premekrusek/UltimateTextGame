@@ -1,0 +1,1 @@
+/usr/bin/c++  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/UltimateTextGame.dir/src/main.cpp.o -o UltimateTextGame  FTXUI/libftxui-screen.a FTXUI/libftxui-dom.a FTXUI/libftxui-component.a FTXUI/libftxui-dom.a FTXUI/libftxui-screen.a

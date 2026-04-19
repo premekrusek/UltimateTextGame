@@ -1,0 +1,10 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/premek/Git-projects/UltimateTextGame/build/cmake_install.cmake",
+		"/Users/premek/Git-projects/UltimateTextGame/build/FTXUI/cmake_install.cmake",
+		"/Users/premek/Git-projects/UltimateTextGame/build/FTXUI/examples/cmake_install.cmake",
+		"/Users/premek/Git-projects/UltimateTextGame/build/FTXUI/doc/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

@@ -1,7 +1,10 @@
-#include <SFML/Graphics.hpp>
-#include <SFML/Window.hpp>
-#include <SFML/System.hpp>
+#include <iostream>
+#include <ftxui/dom/elements.hpp>
+#include <ftxui/screen/screen.hpp>
+
+using namespace ftxui;
 
 int main() {
+
     return 0;
 }
