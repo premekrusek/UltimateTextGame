@@ -1,4 +1,5 @@
 #include <iostream>
+//#include <string>
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/screen.hpp>
 
@@ -33,86 +34,83 @@ int level = 1;
 // |V| > |M| > |M|> |2xM| > |MB| > |V| > |M| > |2xM| > |2xM| > |MB| > |V| > |2xM| > |2xM| > |3xM| > |V| > |HB|
 
 
-class player{
-    private:
-        //int figure;
-    public:
-        int figure;
+struct player{
+    // Hráč si na začátku hry zvolí classu. Hráč musí potvrdit, že chce dannou classu. Pokud nechce může si vybrat jinou a to bez omezení počtu vybírání.
+    string name;
+    int maxHp;// K čemu bych využil pointer a ne referenci? Proč se v této funkci používá pointer a ne reference
+    int hp;
+    int maxEnergy;
+    int energy;
+    int gold = 0;
+    int level = 0;
+    int xp = 0;
+    int attack_dmg;
 
-        player(int f){
-            figure = f;
-            switch(f){
-                case 1:
-                    name = "Paladin";
-                    maxHp = hp = 100;
-                    maxEnergy = energy = 100;
-                    attack_dmg = 3;
-                    break; 
-                case 2:
-                    name = "Lovec";
-                    maxHp = hp = 100;
-                    maxEnergy = energy = 100;
-                    attack_dmg = 4;
-                    break; 
-                case 3:
-                    name = "Mag";
-                    maxHp = hp = 100;
-                    maxEnergy = energy = 100;
-                    attack_dmg = 2;
-                    break; 
-                case 4:
-                    name = "Warlock";
-                    maxHp = hp = 100;
-                    maxEnergy = energy = 100;
-                    attack_dmg = 3;
-                    break; 
-                default:
-                    break;
-            }
+    int figure;
+    player(int f){
+        figure = f;
+        switch(f){
+            case 1:
+                name = "Paladin";
+                maxHp = hp = 100;
+                maxEnergy = energy = 100;
+                attack_dmg = 3;
+                break; 
+            case 2:
+                name = "Lovec";
+                maxHp = hp = 100;
+                maxEnergy = energy = 100;
+                attack_dmg = 4;
+                break; 
+            case 3:
+                name = "Mag";
+                maxHp = hp = 100;
+                maxEnergy = energy = 100;
+                attack_dmg = 2;
+                break; 
+            case 4:
+                name = "Warlock";
+                maxHp = hp = 100;
+                maxEnergy = energy = 100;
+                attack_dmg = 3;
+                break; 
+            default:
+                break;
         }
+    }
 
-        // Hráč si na začátku hry zvolí classu. Hráč musí potvrdit, že chce dannou classu. Pokud nechce může si vybrat jinou a to bez omezení počtu vybírání.
-        string name;
-        int maxHp;// K čemu bych využil pointer a ne referenci? Proč se v této funkci používá pointer a ne reference
-        int hp;
-        int maxEnergy;
-        int energy;
-        int gold = 0;
-        int level = 0;
-        int xp = 0;
-        int attack_dmg;
 
-        void attack(){
+    void attack(){
 
+    }
+
+    void ability1(){
+        switch (figure){
+            case 1:
+                cout << "Paladin pouzil svaty uder!\n";
+                break;
+            case 2:
+                cout << "Lovec vystrelil ohnivy sip!\n";
+                break;
+            case 3:
+                cout << "Mag seslal fireball!\n";
+                break;
         }
+    }
 
-        void ability1(){
-            switch (figure){
-                case 1:
-                    cout << "Paladin pouzil svaty uder!\n";
-                    break;
-                case 2:
-                    cout << "Lovec vystrelil ohnivy sip!\n";
-                    break;
-                case 3:
-                    cout << "Mag seslal fireball!\n";
-                    break;
-            }
+    void ability2(){
+        switch (figure){
+            case 1:
+                cout << "Paladin se vylecil!\n";
+                break;
+            case 2:
+                cout << "Lovec vystrelil rychlou strelu!\n";
+                break;
+            case 3:
+                cout << "Mag se teleportoval!\n";
+                break;
         }
-
-        void ability2(){
-            switch (figure){
-                case 1:
-                    cout << "Paladin se vylecil!\n";
-                    break;
-                case 2:
-                    cout << "Lovec vystrelil rychlou strelu!\n";
-                    break;
-                case 3:
-                    cout << "Mag se teleportoval!\n";
-                    break;
-            }
-        }
+    }
 };
 
 
