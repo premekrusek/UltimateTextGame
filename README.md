@@ -2,7 +2,15 @@
 
 Jednoduchá hra v C++ využívající knihovnu **FTXUI**.
 
-Tato hra se kompiluje pomocí CMake.
+Zvolil jsem knihovnu FTXUI, protože umí pracovat s UI v cmd.
+
+Odkaz na knihovnu:
+
+```bash
+https://github.com/ArthurSonzogni/FTXUI
+```
+
+Tato hra se kompiluje pomocí CMake. Slouží k tomu, abych nemusel psát složité příkazy pro kompilátor (gcc, clang…)
 
 ## Kompilace
 

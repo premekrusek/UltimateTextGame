@@ -1,5 +1,6 @@
 #include <iostream>
 //#include <string>
+//#include <vector>
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/screen.hpp>
 
@@ -24,12 +25,6 @@ Mini-boss má peníze/zlato vždy.
 int hB = 100; // 1
 int village = 2;
 int level = 1;
-/*
-    Doplňovat životy
-    Vylepšit maximální životy
-    Vylepšit maximální manu/energii
-    Vylepšit útok/schopnosti
-*/
 
 // |V| > |M| > |M|> |2xM| > |MB| > |V| > |M| > |2xM| > |2xM| > |MB| > |V| > |2xM| > |2xM| > |3xM| > |V| > |HB|
 
@@ -37,7 +32,7 @@ int level = 1;
 struct player{
     // Hráč si na začátku hry zvolí classu. Hráč musí potvrdit, že chce dannou classu. Pokud nechce může si vybrat jinou a to bez omezení počtu vybírání.
     string name;
-    int maxHp;// K čemu bych využil pointer a ne referenci? Proč se v této funkci používá pointer a ne reference
+    int maxHp;
     int hp;
     int maxEnergy;
     int energy;
@@ -142,19 +137,3 @@ int main() {
     // po ukončení
     cout << "Vybral jsi: " << entries[selected] << "\n";
 }
-
-
-/*
-int main() {
-    auto document = vbox({
-        text("Moje hra") | bold,
-        text("HP: 100") | color(Color::Green),
-    });
-
-    auto screen = Screen::Create(Dimension::Fit(document));
-    Render(screen, document);
-    screen.Print();
-
-    return 0;
-}
-*/
