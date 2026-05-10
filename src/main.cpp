@@ -109,31 +109,120 @@ struct player{
 };
 
 
+enum class ScreenState {
+    MainMenu,
+    Characters,
+    CharacterDetail
+};
+
 int main() {
     ScreenInteractive screen = ScreenInteractive::TerminalOutput();
 
-    // položky menu
-    std::vector<std::string> entries = {
+    ScreenState state = ScreenState::MainMenu;
+
+    // Hlavni menu
+    std::vector<std::string> main_entries = {
         "Start hry",
-        "Nastavení",
+        "Postavy",
         "Konec"
     };
 
-    int selected = 0;
+    int main_selected = 0;
+    Component main_menu = Menu(&main_entries, &main_selected);
 
-    // vytvoření menu
-    Component menu = Menu(&entries, &selected);
+    // Postavy
+    std::vector<std::string> characters = {
+        "Paladin",
+        "Lovec",
+        "Mag",
+        "Warlock"
+    };
+    
+    int char_selected = 0;
+    Component char_menu = Menu(&characters, &char_selected);
 
-    // co se vykreslí
-    Component renderer = Renderer(menu, [&] {
-        return vbox({
-            text("=== MENU ===") | bold,
-            menu->Render()
-        }) | border;
+    // Popisy postav
+    std::vector<std::string> descriptions = {
+        "Paladin\nHP: 100\nEnergy: 100\nDMG: 3\n\nSchopnosti:\n- Svaty uder\n- Leceni",
+
+        "Lovec\nHP: 100\nEnergy: 100\nDMG: 4\n\nSchopnosti:\n- Ohnivy sip\n- Rychla strela",
+
+        "Mag\nHP: 100\nEnergy: 100\nDMG: 2\n\nSchopnosti:\n- Fireball\n- Teleport",
+        
+        "Warlock\nHP: 100\nEnergy: 100\nDMG: 3\n\nSchopnosti:\n- (zatim nedefinovano)\n- (zatim nedefinovano)"
+    };
+
+    // Rendrovani
+    Component container = Container::Vertical({
+        main_menu,
+        char_menu
     });
 
-    screen.Loop(renderer);
+    Component renderer = Renderer(container, [&] {
+        if (state == ScreenState::MainMenu) {
+            return vbox({
+                text("=== HLAVNÍ MENU ===") | bold,
+                main_menu->Render(),
+                text("ENTER = vybrat")
+            }) | border;
+        }
 
-    // po ukončení
-    cout << "Vybral jsi: " << entries[selected] << "\n";
+        if (state == ScreenState::Characters) {
+            return vbox({
+                text("=== POSTAVY ===") | bold,
+                char_menu->Render(),
+                text("ENTER = vybrat | ESC = zpět")
+            }) | border;
+        }
+
+        if (state == ScreenState::CharacterDetail) {
+            return vbox({
+                text("=== DETAIL POSTAVY ===") | bold,
+                text(descriptions[char_selected]),
+                text("ESC = zpět")
+            }) | border;
+        }
+
+        return text("Chyba");
+    });
+
+    // Eventy
+    Component component = CatchEvent(renderer, [&](Event event) {
+        // Hlavni menu
+        if (state == ScreenState::MainMenu) {
+            if (event == Event::Return) {
+                if (main_selected == 1) {
+                    state = ScreenState::Characters;
+                    return true;
+                }
+                if (main_selected == 2) {
+                    screen.Exit();
+                    return true;
+                }
+            }
+        }
+        // Postavy
+        if (state == ScreenState::Characters) {
+            if (event == Event::Return) {
+                state = ScreenState::CharacterDetail;
+                return true;
+            }
+            if (event == Event::Escape) {
+                state = ScreenState::MainMenu;
+                return true;
+            }
+        }
+        // Detail postavy
+        if (state == ScreenState::CharacterDetail) {
+            if (event == Event::Escape) {
+                state = ScreenState::Characters;
+                return true;
+            }
+        }
+        return false;
+    });
+
+    screen.Loop(component);
+
+    return 0;
 }
