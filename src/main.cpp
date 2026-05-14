@@ -112,24 +112,23 @@ struct player{
 enum class ScreenState {
     MainMenu,
     Characters,
-    CharacterDetail
+    CharacterDetail,
+    GameStart
 };
 
-int main() { // vstupní bod programu
-    ScreenInteractive screen = ScreenInteractive::TerminalOutput(); // vytvoří interaktivní terminálové okno (zachytává vstup, vykresluje UI)
-
+void MainMenu(ScreenInteractive& screen){ // funkce pro celé menu
     ScreenState state = ScreenState::MainMenu; // nastaví aktuální stav aplikace (začínáme v hlavním menu)
-
+    
     // Hlavni menu
     std::vector<std::string> main_entries = { // seznam položek hlavního menu
         "Start hry", // položka 0
         "Postavy",   // položka 1
         "Konec"      // položka 2
     };
-
+    
     int main_selected = 0; // index aktuálně vybrané položky (defaultně první)
     Component main_menu = Menu(&main_entries, &main_selected); // vytvoří interaktivní menu (napojené na data a výběr)
-
+    
     // Postavy
     std::vector<std::string> characters = { // seznam postav
         "Paladin",
@@ -140,24 +139,24 @@ int main() { // vstupní bod programu
     
     int char_selected = 0; // index vybrané postavy
     Component char_menu = Menu(&characters, &char_selected); // menu pro výběr postavy
-
+    
     // Popisy postav
     std::vector<std::string> descriptions = { // textové popisy jednotlivých postav
         "Paladin\nHP: 100\nEnergy: 100\nDMG: 3\n\nSchopnosti:\n- Svaty uder\n- Leceni",
-
+    
         "Lovec\nHP: 100\nEnergy: 100\nDMG: 4\n\nSchopnosti:\n- Ohnivy sip\n- Rychla strela",
-
+    
         "Mag\nHP: 100\nEnergy: 100\nDMG: 2\n\nSchopnosti:\n- Fireball\n- Teleport",
         
         "Warlock\nHP: 100\nEnergy: 100\nDMG: 3\n\nSchopnosti:\n- (zatim nedefinovano)\n- (zatim nedefinovano)"
     };
-
+    
     // Rendrovani
     Component container = Container::Vertical({ // kontejner, který drží komponenty (menu)
         main_menu, // hlavní menu
         char_menu  // menu postav
     });
-
+    
     Component renderer = Renderer(container, [&] { // renderer říká jak vykreslit UI podle stavu
         if (state == ScreenState::MainMenu) { // pokud jsme v hlavním menu
             return vbox({ // vykreslí vertikální sloupec
@@ -166,7 +165,7 @@ int main() { // vstupní bod programu
                 text("ENTER = vybrat") // nápověda
             }) | border; // přidá rámeček
         }
-
+    
         if (state == ScreenState::Characters) { // pokud jsme v menu postav
             return vbox({
                 text("=== POSTAVY ===") | bold,
@@ -174,7 +173,7 @@ int main() { // vstupní bod programu
                 text("ENTER = vybrat | ESC = zpět")
             }) | border;
         }
-
+    
         if (state == ScreenState::CharacterDetail) { // pokud jsme v detailu postavy
             return vbox({
                 text("=== DETAIL POSTAVY ===") | bold,
@@ -183,14 +182,26 @@ int main() { // vstupní bod programu
             }) | border;
         }
 
+        if (state == ScreenState::GameStart) { // pokud jsme ve hře
+            return vbox({
+                text("=== START HRY ===") | bold,
+                text("Tady zacne hra."),
+                text("ESC = zpět")
+            }) | border;
+        }
+    
         return text("Chyba"); // fallback (když by byl neplatný stav)
     });
-
+    
     // Eventy
     Component component = CatchEvent(renderer, [&](Event event) { // zachytává klávesy / vstupy
         // Hlavni menu
         if (state == ScreenState::MainMenu) { // pokud jsme v hlavním menu
             if (event == Event::Return) { // pokud uživatel stiskne ENTER
+                if (main_selected == 0) { // pokud je vybráno "Start hry"
+                    state = ScreenState::GameStart;
+                    return true; // event byl zpracován
+                }
                 if (main_selected == 1) { // pokud je vybráno "Postavy"
                     state = ScreenState::Characters; // přepne do menu postav
                     return true; // event byl zpracován
@@ -201,7 +212,7 @@ int main() { // vstupní bod programu
                 }
             }
         }
-
+    
         // Postavy
         if (state == ScreenState::Characters) { // pokud jsme v menu postav
             if (event == Event::Return) { // ENTER
@@ -213,7 +224,7 @@ int main() { // vstupní bod programu
                 return true;
             }
         }
-
+    
         // Detail postavy
         if (state == ScreenState::CharacterDetail) { // pokud jsme v detailu
             if (event == Event::Escape) { // ESC
@@ -222,10 +233,30 @@ int main() { // vstupní bod programu
             }
         }
 
+        // Hra
+        if (state == ScreenState::GameStart) {
+            if (event == Event::Escape) {
+                state = ScreenState::MainMenu;
+                return true;
+            }
+        }
+    
         return false; // event nebyl zpracován (pošle se dál)
     });
 
-    screen.Loop(component); // spustí hlavní smyčku (vykreslování + vstupy)
+    screen.Loop(component); // spustí hlavní smyčku 
+    /*
+    while (běží program) {
+        načti vstup (klávesy)
+        pošli ho do component (OnEvent)
+        překresli obrazovku (Render)
+    }*/
+}
+
+int main() { // vstupní bod programu
+    ScreenInteractive screen = ScreenInteractive::TerminalOutput(); // vytvoří interaktivní terminálové okno
+
+    MainMenu(screen); // zavolá menu
 
     return 0; // konec programu
 }
