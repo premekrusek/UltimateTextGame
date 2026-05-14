@@ -115,34 +115,34 @@ enum class ScreenState {
     CharacterDetail
 };
 
-int main() {
-    ScreenInteractive screen = ScreenInteractive::TerminalOutput();
+int main() { // vstupní bod programu
+    ScreenInteractive screen = ScreenInteractive::TerminalOutput(); // vytvoří interaktivní terminálové okno (zachytává vstup, vykresluje UI)
 
-    ScreenState state = ScreenState::MainMenu;
+    ScreenState state = ScreenState::MainMenu; // nastaví aktuální stav aplikace (začínáme v hlavním menu)
 
     // Hlavni menu
-    std::vector<std::string> main_entries = {
-        "Start hry",
-        "Postavy",
-        "Konec"
+    std::vector<std::string> main_entries = { // seznam položek hlavního menu
+        "Start hry", // položka 0
+        "Postavy",   // položka 1
+        "Konec"      // položka 2
     };
 
-    int main_selected = 0;
-    Component main_menu = Menu(&main_entries, &main_selected);
+    int main_selected = 0; // index aktuálně vybrané položky (defaultně první)
+    Component main_menu = Menu(&main_entries, &main_selected); // vytvoří interaktivní menu (napojené na data a výběr)
 
     // Postavy
-    std::vector<std::string> characters = {
+    std::vector<std::string> characters = { // seznam postav
         "Paladin",
         "Lovec",
         "Mag",
         "Warlock"
     };
     
-    int char_selected = 0;
-    Component char_menu = Menu(&characters, &char_selected);
+    int char_selected = 0; // index vybrané postavy
+    Component char_menu = Menu(&characters, &char_selected); // menu pro výběr postavy
 
     // Popisy postav
-    std::vector<std::string> descriptions = {
+    std::vector<std::string> descriptions = { // textové popisy jednotlivých postav
         "Paladin\nHP: 100\nEnergy: 100\nDMG: 3\n\nSchopnosti:\n- Svaty uder\n- Leceni",
 
         "Lovec\nHP: 100\nEnergy: 100\nDMG: 4\n\nSchopnosti:\n- Ohnivy sip\n- Rychla strela",
@@ -153,76 +153,79 @@ int main() {
     };
 
     // Rendrovani
-    Component container = Container::Vertical({
-        main_menu,
-        char_menu
+    Component container = Container::Vertical({ // kontejner, který drží komponenty (menu)
+        main_menu, // hlavní menu
+        char_menu  // menu postav
     });
 
-    Component renderer = Renderer(container, [&] {
-        if (state == ScreenState::MainMenu) {
-            return vbox({
-                text("=== HLAVNÍ MENU ===") | bold,
-                main_menu->Render(),
-                text("ENTER = vybrat")
-            }) | border;
+    Component renderer = Renderer(container, [&] { // renderer říká jak vykreslit UI podle stavu
+        if (state == ScreenState::MainMenu) { // pokud jsme v hlavním menu
+            return vbox({ // vykreslí vertikální sloupec
+                text("=== HLAVNÍ MENU ===") | bold, // nadpis (tučný)
+                main_menu->Render(), // vykreslí samotné menu
+                text("ENTER = vybrat") // nápověda
+            }) | border; // přidá rámeček
         }
 
-        if (state == ScreenState::Characters) {
+        if (state == ScreenState::Characters) { // pokud jsme v menu postav
             return vbox({
                 text("=== POSTAVY ===") | bold,
-                char_menu->Render(),
+                char_menu->Render(), // vykreslí menu postav
                 text("ENTER = vybrat | ESC = zpět")
             }) | border;
         }
 
-        if (state == ScreenState::CharacterDetail) {
+        if (state == ScreenState::CharacterDetail) { // pokud jsme v detailu postavy
             return vbox({
                 text("=== DETAIL POSTAVY ===") | bold,
-                text(descriptions[char_selected]),
+                text(descriptions[char_selected]), // zobrazí popis vybrané postavy
                 text("ESC = zpět")
             }) | border;
         }
 
-        return text("Chyba");
+        return text("Chyba"); // fallback (když by byl neplatný stav)
     });
 
     // Eventy
-    Component component = CatchEvent(renderer, [&](Event event) {
+    Component component = CatchEvent(renderer, [&](Event event) { // zachytává klávesy / vstupy
         // Hlavni menu
-        if (state == ScreenState::MainMenu) {
-            if (event == Event::Return) {
-                if (main_selected == 1) {
-                    state = ScreenState::Characters;
-                    return true;
+        if (state == ScreenState::MainMenu) { // pokud jsme v hlavním menu
+            if (event == Event::Return) { // pokud uživatel stiskne ENTER
+                if (main_selected == 1) { // pokud je vybráno "Postavy"
+                    state = ScreenState::Characters; // přepne do menu postav
+                    return true; // event byl zpracován
                 }
-                if (main_selected == 2) {
-                    screen.Exit();
+                if (main_selected == 2) { // pokud je vybráno "Konec"
+                    screen.Exit(); // ukončí aplikaci
                     return true;
                 }
             }
         }
+
         // Postavy
-        if (state == ScreenState::Characters) {
-            if (event == Event::Return) {
-                state = ScreenState::CharacterDetail;
+        if (state == ScreenState::Characters) { // pokud jsme v menu postav
+            if (event == Event::Return) { // ENTER
+                state = ScreenState::CharacterDetail; // otevře detail postavy
                 return true;
             }
-            if (event == Event::Escape) {
-                state = ScreenState::MainMenu;
+            if (event == Event::Escape) { // ESC
+                state = ScreenState::MainMenu; // návrat do hlavního menu
                 return true;
             }
         }
+
         // Detail postavy
-        if (state == ScreenState::CharacterDetail) {
-            if (event == Event::Escape) {
-                state = ScreenState::Characters;
+        if (state == ScreenState::CharacterDetail) { // pokud jsme v detailu
+            if (event == Event::Escape) { // ESC
+                state = ScreenState::Characters; // návrat do seznamu postav
                 return true;
             }
         }
-        return false;
+
+        return false; // event nebyl zpracován (pošle se dál)
     });
 
-    screen.Loop(component);
+    screen.Loop(component); // spustí hlavní smyčku (vykreslování + vstupy)
 
-    return 0;
+    return 0; // konec programu
 }
