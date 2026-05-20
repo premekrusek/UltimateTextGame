@@ -29,8 +29,8 @@ int level = 1;
 // |V| > |M| > |M|> |2xM| > |MB| > |V| > |M| > |2xM| > |2xM| > |MB| > |V| > |2xM| > |2xM| > |3xM| > |V| > |HB|
 
 
-struct player{
-    // Hráč si na začátku hry zvolí classu. Hráč musí potvrdit, že chce dannou classu. Pokud nechce může si vybrat jinou a to bez omezení počtu vybírání.
+struct player {
+    // Hráč si na začátku hry zvolí classu. Hráč musí potvrdit, že chce dannou classu.
     string name;
     int maxHp;
     int hp;
@@ -42,45 +42,80 @@ struct player{
     int attack_dmg;
 
     int figure;
-    player(int f){
+
+    // Pozice hráče na obrazovce / mapě
+    int x = 5;
+    int y = 5;
+
+    // Vizuální podoba hráče
+    vector<string> sprite = {
+        " O ",
+        "/|\\",
+        "/ \\"
+    };
+
+    player(int f) {
         figure = f;
-        switch(f){
+
+        switch (f) {
             case 1:
                 name = "Paladin";
                 maxHp = hp = 100;
                 maxEnergy = energy = 100;
                 attack_dmg = 3;
-                break; 
+                break;
+
             case 2:
                 name = "Lovec";
                 maxHp = hp = 100;
                 maxEnergy = energy = 100;
                 attack_dmg = 4;
-                break; 
+                break;
+
             case 3:
                 name = "Mag";
                 maxHp = hp = 100;
                 maxEnergy = energy = 100;
                 attack_dmg = 2;
-                break; 
+                break;
+
             case 4:
                 name = "Warlock";
                 maxHp = hp = 100;
                 maxEnergy = energy = 100;
                 attack_dmg = 3;
-                break; 
+                break;
+
             default:
+                name = "Neznama classa";
+                maxHp = hp = 100;
+                maxEnergy = energy = 100;
+                attack_dmg = 1;
                 break;
         }
     }
 
+    // Vykreslení hráče jako FTXUI Element
+    Element render() {
+        return vbox({
+            text(sprite[0]),
+            text(sprite[1]),
+            text(sprite[2])
+        }) | color(Color::Green);
+    }
 
-    void attack(){
+    // Pohyb hráče
+    void move(int dx, int dy) {
+        x += dx;
+        y += dy;
+    }
+
+    void attack() {
 
     }
 
-    void ability1(){
-        switch (figure){
+    void ability1() {
+        switch (figure) {
             case 1:
                 cout << "Paladin pouzil svaty uder!\n";
                 break;
@@ -90,11 +125,14 @@ struct player{
             case 3:
                 cout << "Mag seslal fireball!\n";
                 break;
+            case 4:
+                cout << "Warlock seslal temnou kletbu!\n";
+                break;
         }
     }
 
-    void ability2(){
-        switch (figure){
+    void ability2() {
+        switch (figure) {
             case 1:
                 cout << "Paladin se vylecil!\n";
                 break;
@@ -103,6 +141,9 @@ struct player{
                 break;
             case 3:
                 cout << "Mag se teleportoval!\n";
+                break;
+            case 4:
+                cout << "Warlock vysal zivot!\n";
                 break;
         }
     }
@@ -117,6 +158,8 @@ enum class ScreenState {
 };
 
 void MainMenu(ScreenInteractive& screen){ // funkce pro celé menu
+    player p(1);
+
     ScreenState state = ScreenState::MainMenu; // nastaví aktuální stav aplikace (začínáme v hlavním menu)
     
     // Hlavni menu
@@ -184,10 +227,10 @@ void MainMenu(ScreenInteractive& screen){ // funkce pro celé menu
 
         if (state == ScreenState::GameStart) { // pokud jsme ve hře
             return vbox({
-                text("=== START HRY ===") | bold,
-                text("Tady zacne hra."),
-                text("ESC = zpět")
-            }) | border;
+                text("UltimateTextGame") | bold,
+                text(""),
+                p.render()
+            });
         }
     
         return text("Chyba"); // fallback (když by byl neplatný stav)
