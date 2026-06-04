@@ -12,12 +12,12 @@ https://github.com/ArthurSonzogni/FTXUI
 
 Tato hra se kompiluje pomocí CMake. Slouží k tomu, abych nemusel psát složité příkazy pro kompilátor (gcc, clang…)
 
-## Kompilace
+## Kompilace + Build
 
 V terminálu spusť:
 
 ```bash
-cmake ..
+cd build
 cmake --build .
 ```
 
