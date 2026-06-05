@@ -98,16 +98,78 @@ struct player {
     }
   }
 
-  // Vykreslení hráče jako FTXUI Element
-  Element render() {
-    return vbox({text(sprite[0]), text(sprite[1]), text(sprite[2])}) |
-           color(Color::Green);
-  }
-
   // Pohyb hráče
   void move(int dx, int dy) {
     x += dx;
     y += dy;
+
+    if (x < 0)
+      x = 0;
+
+    if (y < 0)
+      y = 0;
+
+    if (x > 37)
+      x = 37;
+
+    if (y > 17)
+      y = 17;
+  }
+
+  // Vykreslení hráče jako FTXUI Element
+  Element render() {
+    
+    vector<Element> rows;
+    
+    // vytvoření mapy
+    vector<string> map =
+    {
+      "+--------------------------------------+",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "|                                      |",
+      "+--------------------------------------+",
+    };
+
+    const int HEIGHT = map.size();
+    const int WIDTH = map[0].size();
+
+    // vykreslení hráče
+    map[y][x + 1] = 'O';
+
+    map[y + 1][x] = '/';
+    map[y + 1][x + 1] = '|';
+    map[y + 1][x + 2] = '\\';
+
+    map[y + 2][x] = '/';
+    map[y + 2][x + 2] = '\\';
+
+    // převod mapy na FTXUI elementy
+    for (int i = 0; i < HEIGHT; i++) {
+      rows.push_back(text(map[i]));
+    }
+
+    return vbox(std::move(rows)) | color(Color::Green);
   }
 
   void attack() {}
@@ -234,7 +296,7 @@ void MainMenu(ScreenInteractive &screen) { // funkce pro celé menu
           if (event == Event::Return) {     // pokud uživatel stiskne ENTER
             if (main_selected == 0) {       // pokud je vybráno "Start hry"
               state = MenuState::GameStart;
-              result = AppState::Village;
+              result = AppState::Combat; // Village
               screen.Exit();
               return true; // event byl zpracován
             }
@@ -284,24 +346,35 @@ void MainMenu(ScreenInteractive &screen) { // funkce pro celé menu
 
 void Combat(ScreenInteractive &screen, player &p) {
   Component empty = Container::Vertical({});
-
   Component renderer = Renderer(empty, [&] { return p.render(); });
 
   Component component = CatchEvent(renderer, [&](Event event) {
+    if (event == Event::ArrowLeft) {
+      p.move(-2, 0);
+      return true;
+    }
+
+    if (event == Event::ArrowRight) {
+      p.move(2, 0);
+      return true;
+    }
+
     if (event == Event::Escape) {
       result = AppState::Menu;
       screen.Exit();
       return true;
     }
+
     return false;
   });
+
   screen.Loop(component);
 }
 
 void Village(ScreenInteractive &screen, player &p) {
   Component empty = Container::Vertical({});
 
-  Component renderer = Renderer(empty, [&] { return p.render(); });
+  Component renderer = Renderer(empty, [&] { return text("Village"); });
 
   Component component = CatchEvent(renderer, [&](Event event) {
     if (event == Event::Escape) {
