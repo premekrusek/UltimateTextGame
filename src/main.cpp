@@ -23,6 +23,9 @@ enum class AppState { Menu, Village, Combat, Exit };
 AppState result = AppState::Menu;
 int selected_class = 1;
 
+enum class CombatMode { Action, TurnBased };
+CombatMode selected_combat_mode = CombatMode::Action;
+
 struct Maps {
 private:
   vector<string> combat_map = {
@@ -142,7 +145,7 @@ struct player {
   }
 };
 
-struct CombatController {
+struct ActionCombatController {
 private:
   ScreenInteractive &screen;
   player &p;
@@ -230,16 +233,16 @@ private:
   }
 
 public:
-  CombatController(ScreenInteractive &screen, player &p,
-                   CombatTimerConfig timer_config)
+  ActionCombatController(ScreenInteractive &screen, player &p,
+                         CombatTimerConfig timer_config)
       : screen(screen), p(p), timer_config(timer_config) {}
 
-  ~CombatController() { StopTimer(); }
+  ~ActionCombatController() { StopTimer(); }
 
   void StartTimer() {
     timer_running = true;
-    timer_thread = thread(&CombatController::TimerLoop, this); // Do timer_thread vytvoř v aktuálním objektu nové vlákno a v něm spusť metodu TimerLoop() z objektu CombatController
-    // & předá adresu metody CombatController::TimerLoop
+    timer_thread = thread(&ActionCombatController::TimerLoop, this); // Do timer_thread vytvoř v aktuálním objektu nové vlákno a v něm spusť metodu TimerLoop() z objektu ActionCombatController
+    // & předá adresu metody ActionCombatController::TimerLoop
   }
 
   void StopTimer() {
@@ -438,7 +441,7 @@ void Combat(ScreenInteractive &screen, player &p) {
   timer_config.enemy_tick_ms = 200;
   timer_config.enemy_shot_chance = 5;
 
-  CombatController combat(screen, p, timer_config);
+  ActionCombatController combat(screen, p, timer_config);
 
   Component empty = Container::Vertical({});
   Component renderer = Renderer(empty, [&] { return combat.Render(); });
