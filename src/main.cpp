@@ -1,7 +1,7 @@
-#include <atomic>
-#include <chrono>
-#include <cstdlib>
-#include <ctime>
+#include <atomic> // atomic<bool> timer_running = false;
+#include <chrono> // chrono::milliseconds(delay)
+#include <cstdlib> // rand(), system("clear")
+#include <ctime> // time(nullptr)
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
@@ -24,6 +24,7 @@ AppState result = AppState::Menu;
 int selected_class = 1;
 
 struct Maps {
+private:
   vector<string> combat_map = {
       "+----------------------------+",
       "|                            |",
@@ -43,9 +44,12 @@ struct Maps {
       "+----------------------------+",
   };
 
+public:
   int height() { return combat_map.size(); }
 
   int width() { return combat_map[0].size(); }
+
+  string getLine(int row) { return combat_map[row]; }
 
   void setChar(int y, int x, char ch) {
     if (y >= 0 && y < height() && x >= 0 && x < width()) {
@@ -139,73 +143,14 @@ struct player {
 };
 
 struct CombatController {
-public:
-  CombatController(ScreenInteractive &screen, player &p,
-                   CombatTimerConfig timer_config)
-      : screen(screen), p(p), timer_config(timer_config) {}
-
-  ~CombatController() { StopTimer(); }
-
-  void StartTimer() {
-    timer_running = true;
-    timer_thread = thread(&CombatController::TimerLoop, this);
-  }
-
-  void StopTimer() {
-    timer_running = false;
-
-    if (timer_thread.joinable()) {
-      timer_thread.join();
-    }
-  }
-
-  Element Render() {
-    Maps visible_map;
-    DrawPlayer(visible_map);
-    DrawEnemy(visible_map);
-    DrawBullets(visible_map);
-
-    vector<Element> rows;
-    for (int i = 0; i < visible_map.height(); i++) {
-      rows.push_back(text(visible_map.combat_map[i]));
-    }
-
-    return vbox(rows) | color(Color::Green);
-  }
-
-  bool OnEvent(Event event) {
-    if (event == Event::Custom) {
-      EnemyTurn();
-      return true;
-    }
-
-    if (event == Event::ArrowLeft) {
-      p.move(-2);
-      return true;
-    }
-
-    if (event == Event::ArrowRight) {
-      p.move(2);
-      return true;
-    }
-
-    if (event == Event::Escape) {
-      result = AppState::Menu;
-      screen.Exit();
-      return true;
-    }
-
-    return false;
-  }
-
 private:
   ScreenInteractive &screen;
   player &p;
   CombatTimerConfig timer_config;
   Enemy enemy;
   vector<Bullet> bullets;
-  atomic<bool> timer_running = false;
-  thread timer_thread;
+  atomic<bool> timer_running = false; // atomic<bool> říká: Tahle hodnota se může bezpečně číst a zapisovat z více vláken.
+  thread timer_thread; // přidání vlákna
 
   void TimerLoop() {
     while (timer_running) {
@@ -217,7 +162,7 @@ private:
       this_thread::sleep_for(chrono::milliseconds(delay));
 
       if (timer_running) {
-        screen.PostEvent(Event::Custom);
+        screen.PostEvent(Event::Custom); // pošli signál do OnEvent přes CatchEvent, že se má něco stát
       }
     }
   }
@@ -283,57 +228,69 @@ private:
 
     bullets = active_bullets;
   }
-};
 
-struct MainMenuController {
 public:
-  MainMenuController(ScreenInteractive &screen) : screen(screen) {
-    main_menu = Menu(&main_entries, &main_selected);
-    char_menu = Menu(&characters, &char_selected);
-    container = Container::Vertical({main_menu, char_menu});
+  CombatController(ScreenInteractive &screen, player &p,
+                   CombatTimerConfig timer_config)
+      : screen(screen), p(p), timer_config(timer_config) {}
+
+  ~CombatController() { StopTimer(); }
+
+  void StartTimer() {
+    timer_running = true;
+    timer_thread = thread(&CombatController::TimerLoop, this); // Do timer_thread vytvoř v aktuálním objektu nové vlákno a v něm spusť metodu TimerLoop() z objektu CombatController
+    // & předá adresu metody CombatController::TimerLoop
   }
 
-  Component GetContainer() { return container; }
+  void StopTimer() {
+    timer_running = false;
+
+    if (timer_thread.joinable()) { // existuje běžící vlákno?
+      timer_thread.join(); // Hlavní program počká, až timer vlákno skončí.
+    }
+  }
 
   Element Render() {
-    if (state == MenuState::MainMenu) {
-      return vbox({text("=== HLAVNÍ MENU ===") | bold, main_menu->Render(),
-                   text("ENTER = vybrat")}) |
-             border;
+    Maps visible_map;
+    DrawPlayer(visible_map);
+    DrawEnemy(visible_map);
+    DrawBullets(visible_map);
+
+    vector<Element> rows;
+    for (int i = 0; i < visible_map.height(); i++) {
+      rows.push_back(text(visible_map.getLine(i)));
     }
 
-    if (state == MenuState::Characters) {
-      return vbox({text("=== POSTAVY ===") | bold, char_menu->Render(),
-                   text("ENTER = vybrat | ESC = zpět")}) |
-             border;
-    }
-
-    if (state == MenuState::CharacterDetail) {
-      return vbox({text("=== DETAIL POSTAVY ===") | bold,
-                   text(descriptions[char_selected]),
-                   text("ESC = zpět | ENTER = vybrat tuto postavu")}) |
-             border;
-    }
-
-    return text("Chyba v menu");
+    return vbox(rows) | color(Color::Green);
   }
 
   bool OnEvent(Event event) {
-    if (state == MenuState::MainMenu) {
-      return HandleMainMenu(event);
+    if (event == Event::Custom) {
+      EnemyTurn();
+      return true;
     }
 
-    if (state == MenuState::Characters) {
-      return HandleCharacters(event);
+    if (event == Event::ArrowLeft) {
+      p.move(-2);
+      return true;
     }
 
-    if (state == MenuState::CharacterDetail) {
-      return HandleCharacterDetail(event);
+    if (event == Event::ArrowRight) {
+      p.move(2);
+      return true;
+    }
+
+    if (event == Event::Escape) {
+      result = AppState::Menu;
+      screen.Exit();
+      return true;
     }
 
     return false;
   }
+};
 
+struct MainMenuController {
 private:
   enum class MenuState { MainMenu, Characters, CharacterDetail };
 
@@ -414,6 +371,54 @@ private:
 
     return false;
   }
+
+public:
+  MainMenuController(ScreenInteractive &screen) : screen(screen) {
+    main_menu = Menu(&main_entries, &main_selected);
+    char_menu = Menu(&characters, &char_selected);
+    container = Container::Vertical({main_menu, char_menu});
+  }
+
+  Component GetContainer() { return container; }
+
+  Element Render() {
+    if (state == MenuState::MainMenu) {
+      return vbox({text("=== HLAVNÍ MENU ===") | bold, main_menu->Render(),
+                   text("ENTER = vybrat")}) |
+             border;
+    }
+
+    if (state == MenuState::Characters) {
+      return vbox({text("=== POSTAVY ===") | bold, char_menu->Render(),
+                   text("ENTER = vybrat | ESC = zpět")}) |
+             border;
+    }
+
+    if (state == MenuState::CharacterDetail) {
+      return vbox({text("=== DETAIL POSTAVY ===") | bold,
+                   text(descriptions[char_selected]),
+                   text("ESC = zpět | ENTER = vybrat tuto postavu")}) |
+             border;
+    }
+
+    return text("Chyba v menu");
+  }
+
+  bool OnEvent(Event event) {
+    if (state == MenuState::MainMenu) {
+      return HandleMainMenu(event);
+    }
+
+    if (state == MenuState::Characters) {
+      return HandleCharacters(event);
+    }
+
+    if (state == MenuState::CharacterDetail) {
+      return HandleCharacterDetail(event);
+    }
+
+    return false;
+  }
 };
 
 void MainMenu(ScreenInteractive &screen) {
@@ -449,6 +454,7 @@ void Combat(ScreenInteractive &screen, player &p) {
 void Village(ScreenInteractive &screen, player &p) {
   Component empty = Container::Vertical({});
   Component renderer = Renderer(empty, [&] { return text("Village"); });
+  
   Component component = CatchEvent(renderer, [&](Event event) {
     if (event == Event::Escape) {
       result = AppState::Menu;
