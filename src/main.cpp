@@ -1,3 +1,5 @@
+#include <atomic>
+#include <chrono>
 #include <cstdlib>
 #include <ctime>
 #include <ftxui/component/component.hpp>
@@ -5,6 +7,7 @@
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/screen.hpp>
 #include <string>
+#include <thread>
 #include <vector>
 
 using namespace std;
@@ -69,6 +72,11 @@ struct Enemy {
   }
 };
 
+struct CombatTimerConfig {
+  int enemy_tick_ms = 400;
+  int enemy_shot_chance = 5;
+};
+
 struct player {
   string name;
   int maxHp;
@@ -130,10 +138,26 @@ struct player {
   }
 };
 
-class CombatController {
+struct CombatController {
 public:
-  CombatController(ScreenInteractive &screen, player &p)
-      : screen(screen), p(p) {}
+  CombatController(ScreenInteractive &screen, player &p,
+                   CombatTimerConfig timer_config)
+      : screen(screen), p(p), timer_config(timer_config) {}
+
+  ~CombatController() { StopTimer(); }
+
+  void StartTimer() {
+    timer_running = true;
+    timer_thread = thread(&CombatController::TimerLoop, this);
+  }
+
+  void StopTimer() {
+    timer_running = false;
+
+    if (timer_thread.joinable()) {
+      timer_thread.join();
+    }
+  }
 
   Element Render() {
     Maps visible_map;
@@ -150,9 +174,10 @@ public:
   }
 
   bool OnEvent(Event event) {
-    MoveEnemy();
-    MoveBullets();
-    RemoveOldBullets();
+    if (event == Event::Custom) {
+      EnemyTurn();
+      return true;
+    }
 
     if (event == Event::ArrowLeft) {
       p.move(-2);
@@ -176,8 +201,32 @@ public:
 private:
   ScreenInteractive &screen;
   player &p;
+  CombatTimerConfig timer_config;
   Enemy enemy;
   vector<Bullet> bullets;
+  atomic<bool> timer_running = false;
+  thread timer_thread;
+
+  void TimerLoop() {
+    while (timer_running) {
+      int delay = timer_config.enemy_tick_ms;
+      if (delay < 1) {
+        delay = 1;
+      }
+
+      this_thread::sleep_for(chrono::milliseconds(delay));
+
+      if (timer_running) {
+        screen.PostEvent(Event::Custom);
+      }
+    }
+  }
+
+  void EnemyTurn() {
+    MoveEnemy();
+    MoveBullets();
+    RemoveOldBullets();
+  }
 
   void DrawPlayer(Maps &map) {
     map.setChar(p.y, p.x + 1, 'O');
@@ -209,7 +258,8 @@ private:
   }
 
   void MoveBullets() {
-    if (rand() % 5 == 0) {
+    if (timer_config.enemy_shot_chance > 0 &&
+        rand() % timer_config.enemy_shot_chance == 0) {
       Bullet bullet;
       bullet.x = enemy.x;
       bullet.y = enemy.y + 3;
@@ -235,7 +285,7 @@ private:
   }
 };
 
-class MainMenuController {
+struct MainMenuController {
 public:
   MainMenuController(ScreenInteractive &screen) : screen(screen) {
     main_menu = Menu(&main_entries, &main_selected);
@@ -379,7 +429,11 @@ void MainMenu(ScreenInteractive &screen) {
 }
 
 void Combat(ScreenInteractive &screen, player &p) {
-  CombatController combat(screen, p);
+  CombatTimerConfig timer_config;
+  timer_config.enemy_tick_ms = 200;
+  timer_config.enemy_shot_chance = 5;
+
+  CombatController combat(screen, p, timer_config);
 
   Component empty = Container::Vertical({});
   Component renderer = Renderer(empty, [&] { return combat.Render(); });
@@ -387,7 +441,9 @@ void Combat(ScreenInteractive &screen, player &p) {
   Component component =
       CatchEvent(renderer, [&](Event event) { return combat.OnEvent(event); });
 
+  combat.StartTimer();
   screen.Loop(component);
+  combat.StopTimer();
 }
 
 void Village(ScreenInteractive &screen, player &p) {
