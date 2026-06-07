@@ -1059,7 +1059,15 @@ int main() {
   ScreenInteractive screen = ScreenInteractive::TerminalOutput();
   srand(time(nullptr));
 
+  player Player(selected_class);
+  int active_player_class = selected_class;
+
   while (result != AppState::Exit) {
+    if (active_player_class != selected_class) {
+      Player = player(selected_class); // Vytvoř nový objekt typu player podle vybrané classy.
+      active_player_class = selected_class;
+    }
+
     switch (result) {
     case AppState::Menu:
       system("clear");
@@ -1067,13 +1075,11 @@ int main() {
       break;
     case AppState::Combat: {
       system("clear");
-      player Player(selected_class);
       Combat(screen, Player);
       break;
     }
     case AppState::Village: {
       system("clear");
-      player Player(selected_class);
       Village(screen, Player);
       break;
     }
