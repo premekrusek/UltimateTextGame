@@ -338,6 +338,10 @@ private:
   }
 
   void DrawEnemy(Maps &map, int enemy_index) {
+    if (!IsEnemyAlive(enemy_index)) {
+      return;
+    }
+
     int x = 8 + enemy_index * 7;
     int y = 2;
 
@@ -387,6 +391,9 @@ private:
       string enemy_text = to_string(i + 1) + ") " + enemies[i].name + " HP: " +
                           to_string(enemies[i].hp) + "/" +
                           to_string(enemies[i].maxHp);
+      if (!IsEnemyAlive(i)) {
+        enemy_text = enemy_text + " (porazen)";
+      }
       rows.push_back(text(prefix + enemy_text));
     }
 
@@ -415,6 +422,38 @@ private:
            border;
   }
 
+  bool IsEnemyAlive(int enemy_index) {
+    return enemy_index >= 0 && enemy_index < enemies.size() &&
+           enemies[enemy_index].hp > 0;
+  }
+
+  bool HasLivingEnemies() {
+    for (int i = 0; i < enemies.size(); i++) {
+      if (IsEnemyAlive(i)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  void SelectNextLivingEnemy() {
+    if (!HasLivingEnemies()) {
+      return;
+    }
+
+    if (IsEnemyAlive(selected_enemy)) {
+      return;
+    }
+
+    for (int i = 0; i < enemies.size(); i++) {
+      if (IsEnemyAlive(i)) {
+        selected_enemy = i;
+        return;
+      }
+    }
+  }
+
   void SelectPreviousAction() {
     selected_action--;
     if (selected_action < 0) {
@@ -434,9 +473,15 @@ private:
       return;
     }
 
-    selected_enemy--;
-    if (selected_enemy < 0) {
-      selected_enemy = enemies.size() - 1;
+    for (int i = 0; i < enemies.size(); i++) {
+      selected_enemy--;
+      if (selected_enemy < 0) {
+        selected_enemy = enemies.size() - 1;
+      }
+
+      if (IsEnemyAlive(selected_enemy)) {
+        return;
+      }
     }
   }
 
@@ -445,10 +490,48 @@ private:
       return;
     }
 
-    selected_enemy++;
-    if (selected_enemy >= enemies.size()) {
-      selected_enemy = 0;
+    for (int i = 0; i < enemies.size(); i++) {
+      selected_enemy++;
+      if (selected_enemy >= enemies.size()) {
+        selected_enemy = 0;
+      }
+
+      if (IsEnemyAlive(selected_enemy)) {
+        return;
+      }
     }
+  }
+
+  void PlayerAttack() {
+    if (!HasLivingEnemies()) {
+      message = "Vsichni nepratele uz byli porazeni.";
+      return;
+    }
+
+    SelectNextLivingEnemy();
+
+    Monster &target = enemies[selected_enemy];
+    target.hp -= p.attack_dmg;
+    if (target.hp < 0) {
+      target.hp = 0;
+    }
+
+    message = p.name + " utoci na " + target.name + " za " +
+              to_string(p.attack_dmg) + " poskozeni.";
+
+    if (target.hp == 0) {
+      message = message + " " + target.name + " byl porazen.";
+      SelectNextLivingEnemy();
+    }
+  }
+
+  void ExecuteSelectedAction() {
+    if (selected_action == 0) {
+      PlayerAttack();
+      return;
+    }
+
+    message = "Tato schopnost zatim neni implementovana.";
   }
 
 public:
@@ -491,7 +574,7 @@ public:
     }
 
     if (event == Event::Return) {
-      message = "Tahovy boj zatim nema hotovou logiku akci.";
+      ExecuteSelectedAction();
       return true;
     }
 
