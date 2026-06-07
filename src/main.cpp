@@ -173,6 +173,40 @@ struct player {
   }
 
   bool isAlive() { return hp > 0; }
+
+  int xpForNextLevel() { return (level + 1) * 20; }
+
+  string addXp(int amount) {
+    xp += amount;
+
+    if (xp < xpForNextLevel()) {
+      return "";
+    }
+
+    int oldMaxHp = maxHp;
+    int oldAttack = attack_dmg;
+    int oldMaxEnergy = maxEnergy;
+
+    xp -= xpForNextLevel();
+    level++;
+    maxHp += 5;
+    hp = maxHp;
+    maxEnergy += 2;
+    energy = maxEnergy;
+    attack_dmg++;
+
+    return " Novy level! Max HP: " + to_string(oldMaxHp) + " => " +
+           to_string(maxHp) + ", utok: " + to_string(oldAttack) + " => " +
+           to_string(attack_dmg) + ", energie: " + to_string(oldMaxEnergy) +
+           " => " + to_string(maxEnergy) + ".";
+  }
+
+  void addGold(int amount) {
+    gold += amount;
+    if (gold < 0) {
+      gold = 0;
+    }
+  }
 };
 
 struct ActionCombatController {
@@ -331,6 +365,7 @@ private:
   int selected_enemy = 0;
   int selected_action = 0;
   bool battle_finished = false;
+  bool rewards_given = false;
   string message = "Tahovy boj pripraven. ESC = navrat do menu.";
 
   vector<string> actions = {"Utok", "Schopnost 1", "Schopnost 2"};
@@ -551,9 +586,34 @@ private:
     return false;
   }
 
+  void GiveRewards() {
+    if (rewards_given) {
+      return;
+    }
+
+    rewards_given = true;
+    int total_xp = 0;
+    int total_gold = 0;
+
+    for (int i = 0; i < enemies.size(); i++) {
+      total_xp += enemies[i].xpReward;
+
+      if (enemies[i].alwaysDropsGold || rand() % 2 == 0) {
+        total_gold += enemies[i].goldReward;
+      }
+    }
+
+    p.addGold(total_gold);
+    string level_message = p.addXp(total_xp);
+
+    message = message + " Ziskavas " + to_string(total_xp) + " XP a " +
+              to_string(total_gold) + " zlata." + level_message;
+  }
+
   void EnemyTurn() {
     if (!HasLivingEnemies()) {
       message = message + " Vyhral jsi souboj.";
+      GiveRewards();
       battle_finished = true;
       return;
     }
@@ -595,7 +655,13 @@ public:
     }
 
     if (battle_finished) {
-      if (event == Event::Return && !p.isAlive()) {
+      if (event == Event::Return) {
+        if (p.isAlive()) {
+          result = AppState::Menu;
+          screen.Exit();
+          return true;
+        }
+
         result = AppState::Exit;
         screen.Exit();
         return true;
