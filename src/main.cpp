@@ -662,11 +662,9 @@ private:
   }
 
 public:
-  TurnBasedCombatController(ScreenInteractive &screen, player &p)
-      : screen(screen), p(p) {
-    enemies.push_back(Monster("Sliz", 12, 2, 5, 3, false)); // push_back() je příkaz, který se musí vykonat až při běhu programu
-    enemies.push_back(Monster("Goblin", 16, 3, 8, 5, false));
-  }
+  TurnBasedCombatController(ScreenInteractive &screen, player &p,
+                            vector<Monster> enemies)
+      : screen(screen), p(p), enemies(enemies) {}
 
   Element Render() {
     return vbox({hbox({RenderMap(), separator(), RenderSidePanel()}),
@@ -1036,8 +1034,16 @@ void ActionCombat(ScreenInteractive &screen, player &p) {
   combat.StopTimer();
 }
 
+vector<Monster> CreateTestTurnBasedEnemies() {
+  vector<Monster> enemies;
+  enemies.push_back(Monster("Sliz", 12, 2, 5, 3, false));
+  enemies.push_back(Monster("Goblin", 16, 3, 8, 5, false));
+  return enemies;
+}
+
 void TurnBasedCombat(ScreenInteractive &screen, player &p) {
-  TurnBasedCombatController combat(screen, p);
+  vector<Monster> enemies = CreateTestTurnBasedEnemies();
+  TurnBasedCombatController combat(screen, p, enemies);
 
   Component empty = Container::Vertical({});
   Component renderer = Renderer(empty, [&] { return combat.Render(); });
