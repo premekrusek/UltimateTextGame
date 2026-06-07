@@ -207,6 +207,32 @@ struct player {
       gold = 0;
     }
   }
+
+  bool spendGold(int amount) {
+    if (gold < amount) {
+      return false;
+    }
+
+    gold -= amount;
+    return true;
+  }
+
+  void restoreHealthAndEnergy() {
+    hp = maxHp;
+    energy = maxEnergy;
+  }
+
+  void upgradeMaxHp(int amount) {
+    maxHp += amount;
+    hp = maxHp;
+  }
+
+  void upgradeMaxEnergy(int amount) {
+    maxEnergy += amount;
+    energy = maxEnergy;
+  }
+
+  void upgradeAttack(int amount) { attack_dmg += amount; }
 };
 
 struct ActionCombatController {
@@ -833,6 +859,139 @@ public:
   }
 };
 
+struct VillageController {
+private:
+  ScreenInteractive &screen;
+  player &p;
+
+  vector<string> entries = {"Doplnit zivoty a energii - 5 zlata",
+                            "Vylepsit max zivoty - 10 zlata",
+                            "Vylepsit max energii - 10 zlata",
+                            "Vylepsit utok - 15 zlata", "Pokracovat dal"};
+  int selected = 0;
+  Component menu;
+  string message = "Vesnice: vyber akci a potvrd ENTER.";
+
+  Element RenderPlayerStats() {
+    return vbox({text("Hrac: " + p.name) | bold,
+                 text("HP: " + to_string(p.hp) + "/" + to_string(p.maxHp)),
+                 text("Energie: " + to_string(p.energy) + "/" +
+                      to_string(p.maxEnergy)),
+                 text("Utok: " + to_string(p.attack_dmg)),
+                 text("Level: " + to_string(p.level)),
+                 text("XP: " + to_string(p.xp) + "/" +
+                      to_string(p.xpForNextLevel())),
+                 text("Zlato: " + to_string(p.gold))});
+  }
+
+  bool TrySpendGold(int price) {
+    if (p.spendGold(price)) {
+      return true;
+    }
+
+    message = "Nemas dost zlata.";
+    return false;
+  }
+
+  void RestorePlayer() {
+    if (!TrySpendGold(5)) {
+      return;
+    }
+
+    p.restoreHealthAndEnergy();
+    message = "Doplnil sis zivoty a energii.";
+  }
+
+  void UpgradeMaxHp() {
+    if (!TrySpendGold(10)) {
+      return;
+    }
+
+    p.upgradeMaxHp(5);
+    message = "Max zivoty zvyseny o 5.";
+  }
+
+  void UpgradeMaxEnergy() {
+    if (!TrySpendGold(10)) {
+      return;
+    }
+
+    p.upgradeMaxEnergy(2);
+    message = "Max energie zvysena o 2.";
+  }
+
+  void UpgradeAttack() {
+    if (!TrySpendGold(15)) {
+      return;
+    }
+
+    p.upgradeAttack(1);
+    message = "Utok zvysen o 1.";
+  }
+
+  void ContinueGame() {
+    result = AppState::Menu;
+    screen.Exit();
+  }
+
+  void ExecuteSelectedAction() {
+    if (selected == 0) {
+      RestorePlayer();
+      return;
+    }
+
+    if (selected == 1) {
+      UpgradeMaxHp();
+      return;
+    }
+
+    if (selected == 2) {
+      UpgradeMaxEnergy();
+      return;
+    }
+
+    if (selected == 3) {
+      UpgradeAttack();
+      return;
+    }
+
+    if (selected == 4) {
+      ContinueGame();
+    }
+  }
+
+public:
+  VillageController(ScreenInteractive &screen, player &p)
+      : screen(screen), p(p) {
+    menu = Menu(&entries, &selected);
+  }
+
+  Component GetContainer() { return menu; }
+
+  Element Render() {
+    return vbox({text("=== VESNICE ===") | bold,
+                 hbox({RenderPlayerStats() | border, menu->Render() | border}),
+                 text(message) | border,
+                 text("ESC = zpet do menu")}) |
+           border;
+  }
+
+  bool OnEvent(Event event) {
+    if (event == Event::Escape) {
+      result = AppState::Menu;
+      screen.Exit();
+      return true;
+    }
+
+    if (event == Event::Return) {
+      ExecuteSelectedAction();
+      return true;
+    }
+
+    return false;
+  }
+};
+
 void MainMenu(ScreenInteractive &screen) {
   MainMenuController menu(screen);
 
@@ -885,17 +1044,14 @@ void Combat(ScreenInteractive &screen, player &p) {
 }
 
 void Village(ScreenInteractive &screen, player &p) {
-  Component empty = Container::Vertical({});
-  Component renderer = Renderer(empty, [&] { return text("Village"); });
-  
-  Component component = CatchEvent(renderer, [&](Event event) {
-    if (event == Event::Escape) {
-      result = AppState::Menu;
-      screen.Exit();
-      return true;
-    }
-    return false;
-  });
+  VillageController village(screen, p);
+
+  Component renderer =
+      Renderer(village.GetContainer(), [&] { return village.Render(); });
+
+  Component component = CatchEvent(
+      renderer, [&](Event event) { return village.OnEvent(event); });
+
   screen.Loop(component);
 }
 
