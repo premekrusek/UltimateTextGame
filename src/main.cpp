@@ -293,6 +293,119 @@ public:
   }
 };
 
+struct TurnBasedCombatController {
+private:
+  ScreenInteractive &screen;
+  player &p;
+  Enemy enemy;
+  int selected_enemy = 0;
+  int selected_action = 0;
+  string message = "Tahovy boj pripraven. ESC = navrat do menu.";
+
+  vector<string> actions = {"Utok", "Schopnost 1", "Schopnost 2"};
+
+  void DrawPlayer(Maps &map) {
+    int x = 13;
+    int y = 12;
+
+    map.setChar(y, x + 1, 'O');
+    map.setChar(y + 1, x, '/');
+    map.setChar(y + 1, x + 1, '|');
+    map.setChar(y + 1, x + 2, '\\');
+    map.setChar(y + 2, x, '/');
+    map.setChar(y + 2, x + 2, '\\');
+  }
+
+  void DrawEnemy(Maps &map) {
+    int x = 14;
+    int y = 2;
+
+    map.setChar(y, x, 'O');
+    map.setChar(y + 1, x, '|');
+    map.setChar(y + 2, x - 1, '/');
+    map.setChar(y + 2, x + 1, '\\');
+  }
+
+  Element RenderMap() {
+    Maps visible_map;
+    DrawEnemy(visible_map);
+    DrawPlayer(visible_map);
+
+    vector<Element> rows;
+    for (int i = 0; i < visible_map.height(); i++) {
+      rows.push_back(text(visible_map.getLine(i)));
+    }
+
+    return vbox(rows) | color(Color::Green);
+  }
+
+  Element RenderPlayerStats() {
+    return vbox({text("Hrac: " + p.name) | bold,
+                 text("HP: " + to_string(p.hp) + "/" + to_string(p.maxHp)),
+                 text("Energie: " + to_string(p.energy) + "/" +
+                      to_string(p.maxEnergy)),
+                 text("Utok: " + to_string(p.attack_dmg)),
+                 text("Level: " + to_string(p.level)),
+                 text("Zlato: " + to_string(p.gold))});
+  }
+
+  Element RenderTargetList() {
+    string prefix = "  ";
+    if (selected_enemy == 0) {
+      prefix = "> ";
+    }
+
+    return vbox({text("Cil utoku:") | bold,
+                 text(prefix + string("1) Monstrum HP: 100/100"))});
+  }
+
+  Element RenderActionList() {
+    vector<Element> rows;
+    rows.push_back(text("Akce:") | bold);
+
+    for (int i = 0; i < actions.size(); i++) {
+      string prefix = "  ";
+      if (i == selected_action) {
+        prefix = "> ";
+      }
+
+      rows.push_back(text(prefix + actions[i]));
+    }
+
+    return vbox(rows);
+  }
+
+  Element RenderSidePanel() {
+    return vbox({RenderPlayerStats(), separator(), RenderTargetList(),
+                 separator(), RenderActionList()}) |
+           border;
+  }
+
+public:
+  TurnBasedCombatController(ScreenInteractive &screen, player &p)
+      : screen(screen), p(p) {}
+
+  Element Render() {
+    return vbox({hbox({RenderMap(), separator(), RenderSidePanel()}),
+                 text(message) | border});
+  }
+
+  bool OnEvent(Event event) {
+    if (event == Event::Escape) {
+      result = AppState::Menu;
+      screen.Exit();
+      return true;
+    }
+
+    if (event == Event::Return) {
+      message = "Tahovy boj zatim nema hotovou logiku akci.";
+      return true;
+    }
+
+    return false;
+  }
+};
+
 struct MainMenuController {
 private:
   enum class MenuState { MainMenu, Characters, CharacterDetail };
@@ -436,7 +549,7 @@ void MainMenu(ScreenInteractive &screen) {
   screen.Loop(component);
 }
 
-void Combat(ScreenInteractive &screen, player &p) {
+void ActionCombat(ScreenInteractive &screen, player &p) {
   CombatTimerConfig timer_config;
   timer_config.enemy_tick_ms = 200;
   timer_config.enemy_shot_chance = 5;
@@ -452,6 +565,27 @@ void Combat(ScreenInteractive &screen, player &p) {
   combat.StartTimer();
   screen.Loop(component);
   combat.StopTimer();
+}
+
+void TurnBasedCombat(ScreenInteractive &screen, player &p) {
+  TurnBasedCombatController combat(screen, p);
+
+  Component empty = Container::Vertical({});
+  Component renderer = Renderer(empty, [&] { return combat.Render(); });
+
+  Component component =
+      CatchEvent(renderer, [&](Event event) { return combat.OnEvent(event); });
+
+  screen.Loop(component);
+}
+
+void Combat(ScreenInteractive &screen, player &p) {
+  if (selected_combat_mode == CombatMode::TurnBased) {
+    TurnBasedCombat(screen, p);
+    return;
+  }
+
+  ActionCombat(screen, p);
 }
 
 void Village(ScreenInteractive &screen, player &p) {
