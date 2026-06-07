@@ -79,6 +79,27 @@ struct Enemy {
   }
 };
 
+struct Monster {
+  string name;
+  int maxHp;
+  int hp;
+  int attack;
+  int xpReward;
+  int goldReward;
+  bool alwaysDropsGold;
+
+  Monster(string name, int maxHp, int attack, int xpReward, int goldReward,
+          bool alwaysDropsGold) {
+    this->name = name;
+    this->maxHp = maxHp;
+    this->hp = maxHp;
+    this->attack = attack;
+    this->xpReward = xpReward;
+    this->goldReward = goldReward;
+    this->alwaysDropsGold = alwaysDropsGold;
+  }
+};
+
 struct CombatTimerConfig {
   int enemy_tick_ms = 400;
   int enemy_shot_chance = 5;
@@ -297,7 +318,7 @@ struct TurnBasedCombatController {
 private:
   ScreenInteractive &screen;
   player &p;
-  Enemy enemy;
+  vector<Monster> enemies;
   int selected_enemy = 0;
   int selected_action = 0;
   string message = "Tahovy boj pripraven. ESC = navrat do menu.";
@@ -316,8 +337,8 @@ private:
     map.setChar(y + 2, x + 2, '\\');
   }
 
-  void DrawEnemy(Maps &map) {
-    int x = 14;
+  void DrawEnemy(Maps &map, int enemy_index) {
+    int x = 8 + enemy_index * 7;
     int y = 2;
 
     map.setChar(y, x, 'O');
@@ -328,7 +349,11 @@ private:
 
   Element RenderMap() {
     Maps visible_map;
-    DrawEnemy(visible_map);
+
+    for (int i = 0; i < enemies.size(); i++) {
+      DrawEnemy(visible_map, i);
+    }
+
     DrawPlayer(visible_map);
 
     vector<Element> rows;
@@ -350,13 +375,22 @@ private:
   }
 
   Element RenderTargetList() {
-    string prefix = "  ";
-    if (selected_enemy == 0) {
-      prefix = "> ";
+    vector<Element> rows;
+    rows.push_back(text("Cil utoku:") | bold);
+
+    for (int i = 0; i < enemies.size(); i++) {
+      string prefix = "  ";
+      if (i == selected_enemy) {
+        prefix = "> ";
+      }
+
+      string enemy_text = to_string(i + 1) + ") " + enemies[i].name + " HP: " +
+                          to_string(enemies[i].hp) + "/" +
+                          to_string(enemies[i].maxHp);
+      rows.push_back(text(prefix + enemy_text));
     }
 
-    return vbox({text("Cil utoku:") | bold,
-                 text(prefix + string("1) Monstrum HP: 100/100"))});
+    return vbox(rows);
   }
 
   Element RenderActionList() {
@@ -381,9 +415,48 @@ private:
            border;
   }
 
+  void SelectPreviousAction() {
+    selected_action--;
+    if (selected_action < 0) {
+      selected_action = actions.size() - 1;
+    }
+  }
+
+  void SelectNextAction() {
+    selected_action++;
+    if (selected_action >= actions.size()) {
+      selected_action = 0;
+    }
+  }
+
+  void SelectPreviousEnemy() {
+    if (enemies.size() == 0) {
+      return;
+    }
+
+    selected_enemy--;
+    if (selected_enemy < 0) {
+      selected_enemy = enemies.size() - 1;
+    }
+  }
+
+  void SelectNextEnemy() {
+    if (enemies.size() == 0) {
+      return;
+    }
+
+    selected_enemy++;
+    if (selected_enemy >= enemies.size()) {
+      selected_enemy = 0;
+    }
+  }
+
 public:
   TurnBasedCombatController(ScreenInteractive &screen, player &p)
-      : screen(screen), p(p) {}
+      : screen(screen), p(p) {
+    enemies.push_back(Monster("Sliz", 12, 2, 5, 3, false));
+    enemies.push_back(Monster("Goblin", 16, 3, 8, 5, false));
+  }
 
   Element Render() {
     return vbox({hbox({RenderMap(), separator(), RenderSidePanel()}),
@@ -394,6 +467,26 @@ public:
     if (event == Event::Escape) {
       result = AppState::Menu;
       screen.Exit();
+      return true;
+    }
+
+    if (event == Event::ArrowUp) {
+      SelectPreviousAction();
+      return true;
+    }
+
+    if (event == Event::ArrowDown) {
+      SelectNextAction();
+      return true;
+    }
+
+    if (event == Event::ArrowLeft) {
+      SelectPreviousEnemy();
+      return true;
+    }
+
+    if (event == Event::ArrowRight) {
+      SelectNextEnemy();
       return true;
     }
 
