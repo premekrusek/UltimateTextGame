@@ -26,6 +26,47 @@ int selected_class = 1;
 enum class CombatMode { Action, TurnBased };
 CombatMode selected_combat_mode = CombatMode::Action;
 
+enum class EncounterType { Village, Monsters, MiniBoss, FinalBoss };
+
+struct Encounter {
+private:
+  EncounterType type;
+  int monster_count;
+
+public:
+  Encounter(EncounterType type, int monster_count) {
+    this->type = type;
+    this->monster_count = monster_count;
+  }
+
+  EncounterType getType() { return type; }
+
+  int getMonsterCount() { return monster_count; }
+};
+
+vector<Encounter> CreateGamePath() {
+  vector<Encounter> path;
+
+  path.push_back(Encounter(EncounterType::Village, 0));
+  path.push_back(Encounter(EncounterType::Monsters, 1));
+  path.push_back(Encounter(EncounterType::Monsters, 1));
+  path.push_back(Encounter(EncounterType::Monsters, 2));
+  path.push_back(Encounter(EncounterType::MiniBoss, 1));
+  path.push_back(Encounter(EncounterType::Village, 0));
+  path.push_back(Encounter(EncounterType::Monsters, 1));
+  path.push_back(Encounter(EncounterType::Monsters, 2));
+  path.push_back(Encounter(EncounterType::Monsters, 2));
+  path.push_back(Encounter(EncounterType::MiniBoss, 1));
+  path.push_back(Encounter(EncounterType::Village, 0));
+  path.push_back(Encounter(EncounterType::Monsters, 2));
+  path.push_back(Encounter(EncounterType::Monsters, 2));
+  path.push_back(Encounter(EncounterType::Monsters, 3));
+  path.push_back(Encounter(EncounterType::Village, 0));
+  path.push_back(Encounter(EncounterType::FinalBoss, 1));
+
+  return path;
+}
+
 struct Maps {
 private:
   vector<string> combat_map = {
@@ -99,6 +140,49 @@ struct Monster {
     this->alwaysDropsGold = alwaysDropsGold;
   }
 };
+
+Monster CreateMonster(int monster_number) {
+  if (monster_number == 1) {
+    return Monster("Sliz", 12, 2, 5, 3, false);
+  }
+
+  if (monster_number == 2) {
+    return Monster("Goblin", 16, 3, 8, 5, false);
+  }
+
+  return Monster("Kostlivec", 20, 4, 10, 6, false);
+}
+
+Monster CreateMiniBoss() {
+  return Monster("Mini boss", 35, 6, 20, 15, true);
+}
+
+Monster CreateFinalBoss() {
+  return Monster("Hlavni boss", 60, 9, 50, 30, true);
+}
+
+vector<Monster> CreateEnemiesForEncounter(Encounter encounter) {
+  vector<Monster> enemies;
+
+  if (encounter.getType() == EncounterType::Monsters) {
+    for (int i = 0; i < encounter.getMonsterCount(); i++) {
+      enemies.push_back(CreateMonster(i + 1));
+    }
+    return enemies;
+  }
+
+  if (encounter.getType() == EncounterType::MiniBoss) {
+    enemies.push_back(CreateMiniBoss());
+    return enemies;
+  }
+
+  if (encounter.getType() == EncounterType::FinalBoss) {
+    enemies.push_back(CreateFinalBoss());
+    return enemies;
+  }
+
+  return enemies;
+}
 
 struct CombatTimerConfig {
   int enemy_tick_ms = 400;
@@ -1035,10 +1119,8 @@ void ActionCombat(ScreenInteractive &screen, player &p) {
 }
 
 vector<Monster> CreateTestTurnBasedEnemies() {
-  vector<Monster> enemies;
-  enemies.push_back(Monster("Sliz", 12, 2, 5, 3, false));
-  enemies.push_back(Monster("Goblin", 16, 3, 8, 5, false));
-  return enemies;
+  Encounter encounter(EncounterType::Monsters, 2);
+  return CreateEnemiesForEncounter(encounter);
 }
 
 void TurnBasedCombat(ScreenInteractive &screen, player &p) {
