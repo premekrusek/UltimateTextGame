@@ -164,6 +164,15 @@ struct player {
     if (x > 26)
       x = 26;
   }
+
+  void takeDamage(int damage) {
+    hp -= damage;
+    if (hp < 0) {
+      hp = 0;
+    }
+  }
+
+  bool isAlive() { return hp > 0; }
 };
 
 struct ActionCombatController {
@@ -321,6 +330,7 @@ private:
   vector<Monster> enemies;
   int selected_enemy = 0;
   int selected_action = 0;
+  bool battle_finished = false;
   string message = "Tahovy boj pripraven. ESC = navrat do menu.";
 
   vector<string> actions = {"Utok", "Schopnost 1", "Schopnost 2"};
@@ -502,10 +512,11 @@ private:
     }
   }
 
-  void PlayerAttack() {
+  bool PlayerAttack() {
     if (!HasLivingEnemies()) {
       message = "Vsichni nepratele uz byli porazeni.";
-      return;
+      battle_finished = true;
+      return false;
     }
 
     SelectNextLivingEnemy();
@@ -523,21 +534,51 @@ private:
       message = message + " " + target.name + " byl porazen.";
       SelectNextLivingEnemy();
     }
+
+    return true;
   }
 
-  void ExecuteSelectedAction() {
+  bool ExecuteSelectedAction() {
+    if (battle_finished) {
+      return false;
+    }
+
     if (selected_action == 0) {
-      PlayerAttack();
-      return;
+      return PlayerAttack();
     }
 
     message = "Tato schopnost zatim neni implementovana.";
+    return false;
+  }
+
+  void EnemyTurn() {
+    if (!HasLivingEnemies()) {
+      message = message + " Vyhral jsi souboj.";
+      battle_finished = true;
+      return;
+    }
+
+    int total_damage = 0;
+    for (int i = 0; i < enemies.size(); i++) {
+      if (IsEnemyAlive(i)) {
+        total_damage += enemies[i].attack;
+      }
+    }
+
+    p.takeDamage(total_damage);
+    message = message + " Nepratele utoci za " + to_string(total_damage) +
+              " poskozeni.";
+
+    if (!p.isAlive()) {
+      message = message + " Byl jsi porazen. ENTER = konec hry.";
+      battle_finished = true;
+    }
   }
 
 public:
   TurnBasedCombatController(ScreenInteractive &screen, player &p)
       : screen(screen), p(p) {
-    enemies.push_back(Monster("Sliz", 12, 2, 5, 3, false));
+    enemies.push_back(Monster("Sliz", 12, 2, 5, 3, false)); // push_back() je příkaz, který se musí vykonat až při běhu programu
     enemies.push_back(Monster("Goblin", 16, 3, 8, 5, false));
   }
 
@@ -551,6 +592,16 @@ public:
       result = AppState::Menu;
       screen.Exit();
       return true;
+    }
+
+    if (battle_finished) {
+      if (event == Event::Return && !p.isAlive()) {
+        result = AppState::Exit;
+        screen.Exit();
+        return true;
+      }
+
+      return false;
     }
 
     if (event == Event::ArrowUp) {
@@ -574,7 +625,10 @@ public:
     }
 
     if (event == Event::Return) {
-      ExecuteSelectedAction();
+      bool action_was_done = ExecuteSelectedAction();
+      if (action_was_done) {
+        EnemyTurn();
+      }
       return true;
     }
 
