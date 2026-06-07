@@ -735,7 +735,8 @@ private:
   ScreenInteractive &screen;
   MenuState state = MenuState::MainMenu;
 
-  vector<string> main_entries = {"Start hry", "Postavy", "Konec"};
+  vector<string> main_entries = {"Akcni souboj", "Tahovy souboj", "Vesnice",
+                                 "Postavy", "Konec"};
   int main_selected = 0;
   Component main_menu;
 
@@ -761,18 +762,31 @@ private:
     }
 
     if (main_selected == 0) {
+      selected_combat_mode = CombatMode::Action;
       result = AppState::Combat;
-      selected_class = char_selected + 1;
       screen.Exit();
       return true;
     }
 
     if (main_selected == 1) {
-      state = MenuState::Characters;
+      selected_combat_mode = CombatMode::TurnBased;
+      result = AppState::Combat;
+      screen.Exit();
       return true;
     }
 
     if (main_selected == 2) {
+      result = AppState::Village;
+      screen.Exit();
+      return true;
+    }
+
+    if (main_selected == 3) {
+      state = MenuState::Characters;
+      return true;
+    }
+
+    if (main_selected == 4) {
       result = AppState::Exit;
       screen.Exit();
       return true;
