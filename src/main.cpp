@@ -1067,7 +1067,7 @@ public:
 
 struct MainMenuController {
 private:
-  enum class MenuState { MainMenu, Characters, CharacterDetail };
+  enum class MenuState { MainMenu, Characters, CharacterDetail, ConfirmClass };
 
   ScreenInteractive &screen;
   MenuState state = MenuState::MainMenu;
@@ -1081,6 +1081,9 @@ private:
   vector<string> characters = {"Paladin", "Lovec", "Mag", "Warlock"};
   int char_selected = 0;
   Component char_menu;
+  vector<string> confirm_entries = {"Potvrdit", "Vybrat jinou"};
+  int confirm_selected = 0;
+  Component confirm_menu;
 
   vector<string> descriptions = {
       "Paladin\nHP: 100\nEnergy: 100\nDMG: 3\n\nSchopnosti:\n- Svaty uder\n- "
@@ -1165,8 +1168,8 @@ private:
 
   bool HandleCharacterDetail(Event event) {
     if (event == Event::Return) {
-      selected_class = char_selected + 1;
-      state = MenuState::MainMenu;
+      confirm_selected = 0;
+      state = MenuState::ConfirmClass;
       return true;
     }
 
@@ -1178,11 +1181,32 @@ private:
     return false;
   }
 
+  bool HandleConfirmClass(Event event) {
+    if (event == Event::Escape) {
+      state = MenuState::CharacterDetail;
+      return true;
+    }
+
+    if (event != Event::Return) {
+      return false;
+    }
+
+    if (confirm_selected == 0) {
+      selected_class = char_selected + 1;
+      state = MenuState::MainMenu;
+      return true;
+    }
+
+    state = MenuState::Characters;
+    return true;
+  }
+
 public:
   MainMenuController(ScreenInteractive &screen) : screen(screen) {
     main_menu = Menu(&main_entries, &main_selected);
     char_menu = Menu(&characters, &char_selected);
-    container = Container::Vertical({main_menu, char_menu});
+    confirm_menu = Menu(&confirm_entries, &confirm_selected);
+    container = Container::Vertical({main_menu, char_menu, confirm_menu});
   }
 
   Component GetContainer() { return container; }
@@ -1203,7 +1227,15 @@ public:
     if (state == MenuState::CharacterDetail) {
       return vbox({text("=== DETAIL POSTAVY ===") | bold,
                    text(descriptions[char_selected]),
-                   text("ESC = zpět | ENTER = vybrat tuto postavu")}) |
+                   text("ESC = zpět | ENTER = pokračovat na potvrzení")}) |
+             border;
+    }
+
+    if (state == MenuState::ConfirmClass) {
+      return vbox({text("=== POTVRZENÍ POSTAVY ===") | bold,
+                   text("Chceš hrát za classu: " + characters[char_selected] +
+                        "?"),
+                   confirm_menu->Render(), text("ENTER = potvrdit volbu")}) |
              border;
     }
 
@@ -1221,6 +1253,10 @@ public:
 
     if (state == MenuState::CharacterDetail) {
       return HandleCharacterDetail(event);
+    }
+
+    if (state == MenuState::ConfirmClass) {
+      return HandleConfirmClass(event);
     }
 
     return false;
