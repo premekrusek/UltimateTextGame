@@ -125,6 +125,8 @@ struct Enemy {
   }
 };
 
+enum class MonsterType { Normal, MiniBoss, FinalBoss };
+
 struct Monster {
   string name;
   int maxHp;
@@ -133,9 +135,10 @@ struct Monster {
   int xpReward;
   int goldReward;
   bool alwaysDropsGold;
+  MonsterType type;
 
   Monster(string name, int maxHp, int attack, int xpReward, int goldReward,
-          bool alwaysDropsGold) {
+          bool alwaysDropsGold, MonsterType type) {
     this->name = name;
     this->maxHp = maxHp;
     this->hp = maxHp;
@@ -143,27 +146,28 @@ struct Monster {
     this->xpReward = xpReward;
     this->goldReward = goldReward;
     this->alwaysDropsGold = alwaysDropsGold;
+    this->type = type;
   }
 };
 
 Monster CreateMonster(int monster_number) {
   if (monster_number == 1) {
-    return Monster("Sliz", 12, 2, 5, 3, false);
+    return Monster("Sliz", 12, 2, 5, 3, false, MonsterType::Normal);
   }
 
   if (monster_number == 2) {
-    return Monster("Goblin", 16, 3, 8, 5, false);
+    return Monster("Goblin", 16, 3, 8, 5, false, MonsterType::Normal);
   }
 
-  return Monster("Kostlivec", 20, 4, 10, 6, false);
+  return Monster("Kostlivec", 20, 4, 10, 6, false, MonsterType::Normal);
 }
 
 Monster CreateMiniBoss() {
-  return Monster("Mini boss", 35, 6, 20, 15, true);
+  return Monster("Mini boss", 35, 6, 20, 15, true, MonsterType::MiniBoss);
 }
 
 Monster CreateFinalBoss() {
-  return Monster("Hlavni boss", 60, 9, 50, 30, true);
+  return Monster("Hlavni boss", 60, 9, 50, 30, true, MonsterType::FinalBoss);
 }
 
 vector<Monster> CreateEnemiesForEncounter(Encounter encounter) {
@@ -498,6 +502,8 @@ private:
   TurnState turn_state = TurnState::PlayerTurn;
   bool rewards_given = false;
   bool final_boss_encounter = false;
+  bool final_boss_rage_message_shown = false;
+  int enemy_turn_count = 0;
   vector<string> messages = {"Tahovy boj pripraven. ESC = navrat do menu."};
 
   vector<string> actions;
@@ -760,6 +766,42 @@ private:
                to_string(old_hp) + " => " + to_string(p.hp) + ".");
   }
 
+  int GetEnemyDamage(Monster &enemy) {
+    int damage = enemy.attack;
+
+    if (enemy.type == MonsterType::MiniBoss && enemy_turn_count % 2 == 0) {
+      damage += 3;
+      AddMessage(enemy.name + " pouziva silny uder.");
+    }
+
+    if (enemy.type == MonsterType::FinalBoss && enemy.hp <= enemy.maxHp / 2) {
+      damage += 4;
+
+      if (!final_boss_rage_message_shown) {
+        AddMessage(enemy.name + " se rozzuril a zesilil utoky.");
+        final_boss_rage_message_shown = true;
+      }
+    }
+
+    return damage;
+  }
+
+  void DrainEnergyByFinalBoss() {
+    for (int i = 0; i < enemies.size(); i++) {
+      if (IsEnemyAlive(i) && enemies[i].type == MonsterType::FinalBoss) {
+        int old_energy = p.energy;
+        p.energy -= 2;
+        if (p.energy < 0) {
+          p.energy = 0;
+        }
+
+        AddMessage(enemies[i].name + " vysava energii. Energie: " +
+                   to_string(old_energy) + " => " + to_string(p.energy) + ".");
+        return;
+      }
+    }
+  }
+
   bool PlayerAttack() {
     if (!HasLivingEnemies()) {
       AddMessage("Vsichni nepratele uz byli porazeni.");
@@ -905,6 +947,7 @@ private:
 
   void EnemyTurn() {
     turn_state = TurnState::EnemyTurn;
+    enemy_turn_count++;
 
     if (!HasLivingEnemies()) {
       if (final_boss_encounter) {
@@ -920,9 +963,11 @@ private:
     int total_damage = 0;
     for (int i = 0; i < enemies.size(); i++) {
       if (IsEnemyAlive(i)) {
-        total_damage += enemies[i].attack;
+        total_damage += GetEnemyDamage(enemies[i]);
       }
     }
+
+    DrainEnergyByFinalBoss();
 
     p.takeDamage(total_damage);
     AddMessage("Nepratele utoci za " + to_string(total_damage) + " poskozeni.");
