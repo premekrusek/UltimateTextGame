@@ -26,6 +26,8 @@ int selected_class = 1;
 enum class CombatMode { Action, TurnBased };
 CombatMode selected_combat_mode = CombatMode::Action;
 
+enum class TurnState { PlayerTurn, EnemyTurn, Victory, Defeat };
+
 bool story_mode_active = false;
 int current_encounter_index = 0;
 
@@ -477,7 +479,7 @@ private:
   vector<Monster> enemies;
   int selected_enemy = 0;
   int selected_action = 0;
-  bool battle_finished = false;
+  TurnState turn_state = TurnState::PlayerTurn;
   bool rewards_given = false;
   bool final_boss_encounter = false;
   vector<string> messages = {"Tahovy boj pripraven. ESC = navrat do menu."};
@@ -608,6 +610,10 @@ private:
     return false;
   }
 
+  bool IsBattleFinished() {
+    return turn_state == TurnState::Victory || turn_state == TurnState::Defeat;
+  }
+
   void SelectNextLivingEnemy() {
     if (!HasLivingEnemies()) {
       return;
@@ -676,7 +682,7 @@ private:
   bool PlayerAttack() {
     if (!HasLivingEnemies()) {
       AddMessage("Vsichni nepratele uz byli porazeni.");
-      battle_finished = true;
+      turn_state = TurnState::Victory;
       return false;
     }
 
@@ -700,7 +706,7 @@ private:
   }
 
   bool ExecuteSelectedAction() {
-    if (battle_finished) {
+    if (IsBattleFinished() || turn_state != TurnState::PlayerTurn) {
       return false;
     }
 
@@ -737,6 +743,8 @@ private:
   }
 
   void EnemyTurn() {
+    turn_state = TurnState::EnemyTurn;
+
     if (!HasLivingEnemies()) {
       if (final_boss_encounter) {
         AddMessage("Vyhral jsi celou hru. ESC = zpet do menu.");
@@ -744,7 +752,7 @@ private:
         AddMessage("Vyhral jsi souboj.");
       }
       GiveRewards();
-      battle_finished = true;
+      turn_state = TurnState::Victory;
       return;
     }
 
@@ -760,8 +768,11 @@ private:
 
     if (!p.isAlive()) {
       AddMessage("Prohral jsi. ESC = zpet do menu.");
-      battle_finished = true;
+      turn_state = TurnState::Defeat;
+      return;
     }
+
+    turn_state = TurnState::PlayerTurn;
   }
 
 public:
@@ -777,7 +788,8 @@ public:
 
   bool OnEvent(Event event) {
     if (event == Event::Escape) {
-      if (battle_finished && (final_boss_encounter || !p.isAlive())) {
+      if (IsBattleFinished() &&
+          (final_boss_encounter || turn_state == TurnState::Defeat)) {
         story_mode_active = false;
       }
       result = AppState::Menu;
@@ -785,8 +797,8 @@ public:
       return true;
     }
 
-    if (battle_finished) {
-      if (final_boss_encounter || !p.isAlive()) {
+    if (IsBattleFinished()) {
+      if (final_boss_encounter || turn_state == TurnState::Defeat) {
         return false;
       }
 
