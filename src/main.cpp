@@ -26,6 +26,9 @@ int selected_class = 1;
 enum class CombatMode { Action, TurnBased };
 CombatMode selected_combat_mode = CombatMode::Action;
 
+bool story_mode_active = false;
+int current_encounter_index = 0;
+
 enum class EncounterType { Village, Monsters, MiniBoss, FinalBoss };
 
 struct Encounter {
@@ -817,8 +820,9 @@ private:
   ScreenInteractive &screen;
   MenuState state = MenuState::MainMenu;
 
-  vector<string> main_entries = {"Akcni souboj", "Tahovy souboj", "Vesnice",
-                                 "Postavy", "Konec"};
+  vector<string> main_entries = {"Pokracovat pribehem", "Akcni souboj",
+                                 "Tahovy souboj", "Vesnice", "Postavy",
+                                 "Konec"};
   int main_selected = 0;
   Component main_menu;
 
@@ -844,31 +848,43 @@ private:
     }
 
     if (main_selected == 0) {
+      story_mode_active = true;
+      current_encounter_index = 0;
+      selected_combat_mode = CombatMode::Action;
+      result = AppState::Village;
+      screen.Exit();
+      return true;
+    }
+
+    if (main_selected == 1) {
+      story_mode_active = false;
       selected_combat_mode = CombatMode::Action;
       result = AppState::Combat;
       screen.Exit();
       return true;
     }
 
-    if (main_selected == 1) {
+    if (main_selected == 2) {
+      story_mode_active = false;
       selected_combat_mode = CombatMode::TurnBased;
       result = AppState::Combat;
       screen.Exit();
       return true;
     }
 
-    if (main_selected == 2) {
+    if (main_selected == 3) {
+      story_mode_active = false;
       result = AppState::Village;
       screen.Exit();
       return true;
     }
 
-    if (main_selected == 3) {
+    if (main_selected == 4) {
       state = MenuState::Characters;
       return true;
     }
 
-    if (main_selected == 4) {
+    if (main_selected == 5) {
       result = AppState::Exit;
       screen.Exit();
       return true;
@@ -1100,6 +1116,28 @@ void MainMenu(ScreenInteractive &screen) {
   screen.Loop(component);
 }
 
+void AdvanceStoryEncounter(vector<Encounter> &game_path) { // posune hráče na další část příběhové cesty.
+  if (!story_mode_active) {
+    return;
+  }
+
+  current_encounter_index++;
+  if (current_encounter_index >= game_path.size()) {
+    story_mode_active = false;
+    result = AppState::Exit;
+    return;
+  }
+
+  Encounter next_encounter = game_path[current_encounter_index];
+  if (next_encounter.getType() == EncounterType::Village) {
+    result = AppState::Village;
+    return;
+  }
+
+  selected_combat_mode = CombatMode::TurnBased;
+  result = AppState::Combat;
+}
+
 void ActionCombat(ScreenInteractive &screen, player &p) {
   CombatTimerConfig timer_config;
   timer_config.enemy_tick_ms = 200;
@@ -1118,13 +1156,18 @@ void ActionCombat(ScreenInteractive &screen, player &p) {
   combat.StopTimer();
 }
 
-vector<Monster> CreateTestTurnBasedEnemies() {
-  Encounter encounter(EncounterType::Monsters, 2);
-  return CreateEnemiesForEncounter(encounter);
+vector<Monster> CreateCurrentTurnBasedEnemies(vector<Encounter> &game_path) {
+  if (story_mode_active && current_encounter_index < game_path.size()) {
+    return CreateEnemiesForEncounter(game_path[current_encounter_index]);
+  }
+
+  Encounter test_encounter(EncounterType::Monsters, 2);
+  return CreateEnemiesForEncounter(test_encounter);
 }
 
-void TurnBasedCombat(ScreenInteractive &screen, player &p) {
-  vector<Monster> enemies = CreateTestTurnBasedEnemies();
+void TurnBasedCombat(ScreenInteractive &screen, player &p,
+                     vector<Encounter> &game_path) {
+  vector<Monster> enemies = CreateCurrentTurnBasedEnemies(game_path);
   TurnBasedCombatController combat(screen, p, enemies);
 
   Component empty = Container::Vertical({});
@@ -1133,19 +1176,23 @@ void TurnBasedCombat(ScreenInteractive &screen, player &p) {
   Component component =
       CatchEvent(renderer, [&](Event event) { return combat.OnEvent(event); });
 
-  screen.Loop(component);
+  screen.Loop(component); // Dokud běží screen.Loop(component), hráč je uvnitř obrazovky souboje
+
+  if (story_mode_active && p.isAlive()) {
+    AdvanceStoryEncounter(game_path);
+  }
 }
 
-void Combat(ScreenInteractive &screen, player &p) {
+void Combat(ScreenInteractive &screen, player &p, vector<Encounter> &game_path) {
   if (selected_combat_mode == CombatMode::TurnBased) {
-    TurnBasedCombat(screen, p);
+    TurnBasedCombat(screen, p, game_path);
     return;
   }
 
   ActionCombat(screen, p);
 }
 
-void Village(ScreenInteractive &screen, player &p) {
+void Village(ScreenInteractive &screen, player &p, vector<Encounter> &game_path) {
   VillageController village(screen, p);
 
   Component renderer =
@@ -1155,12 +1202,17 @@ void Village(ScreenInteractive &screen, player &p) {
       renderer, [&](Event event) { return village.OnEvent(event); });
 
   screen.Loop(component);
+
+  if (story_mode_active) {
+    AdvanceStoryEncounter(game_path);
+  }
 }
 
 int main() {
   ScreenInteractive screen = ScreenInteractive::TerminalOutput();
   srand(time(nullptr));
 
+  vector<Encounter> game_path = CreateGamePath();
   player Player(selected_class);
   int active_player_class = selected_class;
 
@@ -1177,12 +1229,12 @@ int main() {
       break;
     case AppState::Combat: {
       system("clear");
-      Combat(screen, Player);
+      Combat(screen, Player, game_path);
       break;
     }
     case AppState::Village: {
       system("clear");
-      Village(screen, Player);
+      Village(screen, Player, game_path);
       break;
     }
     default:
