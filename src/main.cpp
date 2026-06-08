@@ -208,6 +208,7 @@ struct player {
   int level = 0;
   int xp = 0;
   int attack_dmg;
+  int ability_bonus = 0;
 
   int figure;
 
@@ -279,6 +280,7 @@ struct player {
     int oldMaxHp = maxHp;
     int oldAttack = attack_dmg;
     int oldMaxEnergy = maxEnergy;
+    int oldAbilityBonus = ability_bonus;
 
     xp -= xpForNextLevel();
     level++;
@@ -287,11 +289,14 @@ struct player {
     maxEnergy += 2;
     energy = maxEnergy;
     attack_dmg++;
+    ability_bonus++;
 
     return " Novy level! Max HP: " + to_string(oldMaxHp) + " => " +
            to_string(maxHp) + ", utok: " + to_string(oldAttack) + " => " +
            to_string(attack_dmg) + ", energie: " + to_string(oldMaxEnergy) +
-           " => " + to_string(maxEnergy) + ".";
+           " => " + to_string(maxEnergy) + ", schopnosti: " +
+           to_string(oldAbilityBonus) + " => " + to_string(ability_bonus) +
+           ".";
   }
 
   void addGold(int amount) {
@@ -342,6 +347,8 @@ struct player {
   }
 
   void upgradeAttack(int amount) { attack_dmg += amount; }
+
+  void upgradeAbilityBonus(int amount) { ability_bonus += amount; }
 };
 
 struct ActionCombatController {
@@ -557,6 +564,7 @@ private:
                  text("Energie: " + to_string(p.energy) + "/" +
                       to_string(p.maxEnergy)),
                  text("Utok: " + to_string(p.attack_dmg)),
+                 text("Bonus schopnosti: " + to_string(p.ability_bonus)),
                  text("Level: " + to_string(p.level)),
                  text("Zlato: " + to_string(p.gold))});
   }
@@ -834,7 +842,7 @@ private:
         AddMessage("Nemas dost energie na Svaty uder.");
         return false;
       }
-      DamageAllEnemies(2, "Svaty uder");
+      DamageAllEnemies(2 + p.ability_bonus, "Svaty uder");
       return true;
     }
 
@@ -843,7 +851,7 @@ private:
         AddMessage("Nemas dost energie na Leceni.");
         return false;
       }
-      HealPlayer(5, "Leceni");
+      HealPlayer(5 + p.ability_bonus, "Leceni");
       return true;
     }
 
@@ -852,7 +860,7 @@ private:
         AddMessage("Nemas dost energie na Ohnivy sip.");
         return false;
       }
-      DamageSelectedEnemy(p.attack_dmg + 3, "Ohnivy sip");
+      DamageSelectedEnemy(p.attack_dmg + 3 + p.ability_bonus, "Ohnivy sip");
       return true;
     }
 
@@ -861,9 +869,9 @@ private:
         AddMessage("Nemas dost energie na Rychlou strelu.");
         return false;
       }
-      DamageSelectedEnemy(p.attack_dmg, "Rychla strela");
+      DamageSelectedEnemy(p.attack_dmg + p.ability_bonus, "Rychla strela");
       if (HasLivingEnemies()) {
-        DamageSelectedEnemy(p.attack_dmg, "Rychla strela");
+        DamageSelectedEnemy(p.attack_dmg + p.ability_bonus, "Rychla strela");
       }
       return true;
     }
@@ -873,7 +881,7 @@ private:
         AddMessage("Nemas dost energie na Fireball.");
         return false;
       }
-      DamageAllEnemies(p.attack_dmg + 2, "Fireball");
+      DamageAllEnemies(p.attack_dmg + 2 + p.ability_bonus, "Fireball");
       return true;
     }
 
@@ -882,7 +890,7 @@ private:
         AddMessage("Nemas dost energie na Magicky stit.");
         return false;
       }
-      HealPlayer(3, "Magicky stit");
+      HealPlayer(3 + p.ability_bonus, "Magicky stit");
       return true;
     }
 
@@ -891,7 +899,7 @@ private:
         AddMessage("Nemas dost energie na Kletbu.");
         return false;
       }
-      DamageAllEnemies(3, "Kletba");
+      DamageAllEnemies(3 + p.ability_bonus, "Kletba");
       return true;
     }
 
@@ -900,8 +908,9 @@ private:
         AddMessage("Nemas dost energie na Vysati zivota.");
         return false;
       }
-      DamageSelectedEnemy(p.attack_dmg + 1, "Vysati zivota");
-      HealPlayer(3, "Vysati zivota");
+      DamageSelectedEnemy(p.attack_dmg + 1 + p.ability_bonus,
+                          "Vysati zivota");
+      HealPlayer(3 + p.ability_bonus, "Vysati zivota");
       return true;
     }
 
@@ -1088,16 +1097,20 @@ private:
   vector<string> descriptions = {
       "Paladin\nHP: 100\nEnergy: 100\nDMG: 3\n\nSchopnosti:\n- Svaty uder\n- "
       "Leceni\n\nSvaty uder: 2 poskozeni vsem nepratelum, stoji 2 energie.\n"
-      "Leceni: obnovi 5 HP, stoji 1 energii.",
+      "Leceni: obnovi 5 HP, stoji 1 energii.\nBonus schopnosti zvysuje "
+      "poskozeni i leceni.",
       "Lovec\nHP: 100\nEnergy: 100\nDMG: 4\n\nSchopnosti:\n- Ohnivy sip\n- "
       "Rychla strela\n\nOhnivy sip: silny utok na jeden cil, stoji 2 "
-      "energie.\nRychla strela: dva utoky po sobe, stoji 3 energie.",
+      "energie.\nRychla strela: dva utoky po sobe, stoji 3 energie.\nBonus "
+      "schopnosti zvysuje poskozeni.",
       "Mag\nHP: 100\nEnergy: 100\nDMG: 2\n\nSchopnosti:\n- Fireball\n- "
       "Magicky stit\n\nFireball: poskozeni vsem nepratelum, stoji 4 "
-      "energie.\nMagicky stit: obnovi 3 HP, stoji 2 energie.",
+      "energie.\nMagicky stit: obnovi 3 HP, stoji 2 energie.\nBonus "
+      "schopnosti zvysuje poskozeni i leceni.",
       "Warlock\nHP: 100\nEnergy: 100\nDMG: 3\n\nSchopnosti:\n- Kletba\n- "
       "Vysati zivota\n\nKletba: 3 poskozeni vsem nepratelum, stoji "
-      "3 energie.\nVysati zivota: poskodi cil a leci hrace, stoji 2 energie."};
+      "3 energie.\nVysati zivota: poskodi cil a leci hrace, stoji 2 "
+      "energie.\nBonus schopnosti zvysuje poskozeni i leceni."};
 
   Component container;
 
@@ -1278,7 +1291,7 @@ private:
                             "Doplnit zivoty a energii - 5 zlata",
                             "Vylepsit max zivoty - 10 zlata",
                             "Vylepsit max energii - 10 zlata",
-                            "Vylepsit utok - 15 zlata"};
+                            "Vylepsit utok a schopnosti - 15 zlata"};
   int selected = 0;
   Component menu;
   string message = "Vesnice: vyber akci a potvrd ENTER.";
@@ -1290,6 +1303,7 @@ private:
                  text("Energie: " + to_string(p.energy) + "/" +
                       to_string(p.maxEnergy)),
                  text("Utok: " + to_string(p.attack_dmg)),
+                 text("Bonus schopnosti: " + to_string(p.ability_bonus)),
                  text("Level: " + to_string(p.level)),
                  text("XP: " + to_string(p.xp) + "/" +
                       to_string(p.xpForNextLevel())),
@@ -1338,7 +1352,8 @@ private:
     }
 
     p.upgradeAttack(1);
-    message = "Utok zvysen o 1.";
+    p.upgradeAbilityBonus(1);
+    message = "Utok a schopnosti zvyseny o 1.";
   }
 
   void ContinueGame() {
