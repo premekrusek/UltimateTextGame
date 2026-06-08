@@ -777,9 +777,15 @@ private:
 
 public:
   TurnBasedCombatController(ScreenInteractive &screen, player &p,
-                            vector<Monster> enemies, bool final_boss_encounter)
+                            vector<Monster> enemies, bool final_boss_encounter,
+                            bool enemies_start_first)
       : screen(screen), p(p), enemies(enemies),
-        final_boss_encounter(final_boss_encounter) {}
+        final_boss_encounter(final_boss_encounter) {
+    if (enemies_start_first) {
+      AddMessage("Nepratele zacinaji jako prvni.");
+      EnemyTurn();
+    }
+  }
 
   Element Render() {
     return vbox({hbox({RenderMap(), separator(), RenderSidePanel()}),
@@ -1215,11 +1221,22 @@ bool IsCurrentFinalBossEncounter(vector<Encounter> &game_path) {
          game_path[current_encounter_index].getType() == EncounterType::FinalBoss;
 }
 
+bool EnemiesStartCurrentEncounter(vector<Encounter> &game_path) {
+  if (!story_mode_active || current_encounter_index >= game_path.size()) {
+    return false;
+  }
+
+  EncounterType type = game_path[current_encounter_index].getType();
+  return type == EncounterType::MiniBoss || type == EncounterType::FinalBoss;
+}
+
 void TurnBasedCombat(ScreenInteractive &screen, player &p,
                      vector<Encounter> &game_path) {
   vector<Monster> enemies = CreateCurrentTurnBasedEnemies(game_path);
   bool final_boss_encounter = IsCurrentFinalBossEncounter(game_path);
-  TurnBasedCombatController combat(screen, p, enemies, final_boss_encounter);
+  bool enemies_start_first = EnemiesStartCurrentEncounter(game_path);
+  TurnBasedCombatController combat(screen, p, enemies, final_boss_encounter,
+                                   enemies_start_first);
 
   Component empty = Container::Vertical({});
   Component renderer = Renderer(empty, [&] { return combat.Render(); });
