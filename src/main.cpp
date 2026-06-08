@@ -13,6 +13,8 @@
 using namespace std;
 using namespace ftxui;
 
+// Jednoduche globalni hodnoty a stavy hry. Podle nich hlavni smycka vi,
+// jestli ma ukazat menu, vesnici, souboj nebo ukoncit program.
 int m = 100;  // 16
 int mB = 100; // 2
 int hB = 100; // 1
@@ -31,6 +33,8 @@ enum class TurnState { PlayerTurn, EnemyTurn, Victory, Defeat };
 bool story_mode_active = false;
 int current_encounter_index = 0;
 
+// Jedno setkani v pribehu muze byt vesnice, normalni monstra,
+// mini-boss nebo hlavni boss. Herni cesta je potom seznam techto setkani.
 enum class EncounterType { Village, Monsters, MiniBoss, FinalBoss };
 
 struct Encounter {
@@ -52,6 +56,8 @@ public:
 vector<Encounter> CreateGamePath() {
   vector<Encounter> path;
 
+  // Pevne nastavena cesta pribehem. Splnuje pozadovane pocty vesnic,
+  // monster, mini-bossu a hlavniho bosse.
   path.push_back(Encounter(EncounterType::Village, 0));
   path.push_back(Encounter(EncounterType::Monsters, 1));
   path.push_back(Encounter(EncounterType::Monsters, 1));
@@ -72,6 +78,8 @@ vector<Encounter> CreateGamePath() {
   return path;
 }
 
+// Textova mapa je ulozena jako radky stringu. Do mapy se potom zapisuje
+// hrac, nepratele a strely pomoci setChar().
 struct Maps {
 private:
   vector<string> combat_map = {
@@ -107,6 +115,7 @@ public:
   }
 };
 
+// Pomocne objekty pro akcni souboj s casovacem.
 struct Bullet {
   int x;
   int y;
@@ -127,6 +136,8 @@ struct Enemy {
 
 enum class MonsterType { Normal, MiniBoss, FinalBoss };
 
+// Monster drzi vsechny statistiky nepritele a odmenu za jeho porazeni.
+// Typ monstra urcuje, jestli se pouziji specialni boss mechaniky.
 struct Monster {
   string name;
   int maxHp;
@@ -150,6 +161,7 @@ struct Monster {
   }
 };
 
+// Tyto funkce vytvareji konkretni nepratele pro jednotliva setkani.
 Monster CreateMonster(int monster_number) {
   if (monster_number == 1) {
     return Monster("Sliz", 12, 2, 5, 3, false, MonsterType::Normal);
@@ -173,6 +185,7 @@ Monster CreateFinalBoss() {
 vector<Monster> CreateEnemiesForEncounter(Encounter encounter) {
   vector<Monster> enemies;
 
+  // U normalniho setkani vytvorime tolik monster, kolik rika encounter.
   if (encounter.getType() == EncounterType::Monsters) {
     for (int i = 0; i < encounter.getMonsterCount(); i++) {
       enemies.push_back(CreateMonster(i + 1));
@@ -198,6 +211,8 @@ struct CombatTimerConfig {
   int enemy_shot_chance = 5;
 };
 
+// Hrac obsahuje statistiky, classu, pozici na mape a pomocne metody,
+// ktere hlidaji, aby hodnoty nedavaly nesmysl.
 struct player {
   string name;
   int maxHp;
@@ -270,6 +285,7 @@ struct player {
 
   int xpForNextLevel() { return (level + 1) * 20; }
 
+  // Prida zkusenosti a pri dostatku XP rovnou zvysi level a statistiky.
   string addXp(int amount) {
     xp += amount;
 
@@ -351,6 +367,8 @@ struct player {
   void upgradeAbilityBonus(int amount) { ability_bonus += amount; }
 };
 
+// Akcni souboj je starsi real-time rezim. Nepritel se hybe podle casovace
+// ve vlastnim vlakne a pres PostEvent() posila hre signal k prekresleni.
 struct ActionCombatController {
 private:
   ScreenInteractive &screen;
@@ -377,6 +395,7 @@ private:
   }
 
   void EnemyTurn() {
+    // Jeden automaticky tik nepritele: pohyb, strely a uklid starych strel.
     MoveEnemy();
     MoveBullets();
     RemoveOldBullets();
@@ -429,6 +448,7 @@ private:
     Maps map;
     vector<Bullet> active_bullets;
 
+    // Nechame jen strely, ktere jsou jeste uvnitr mapy.
     for (int i = 0; i < bullets.size(); i++) {
       if (bullets[i].y < map.height()) {
         active_bullets.push_back(bullets[i]);
@@ -499,6 +519,8 @@ public:
   }
 };
 
+// Tahovy souboj je hlavni RPG souboj. Vykresluje mapu, panel hrace,
+// vyber cile, vyber akce a textovy log udalosti.
 struct TurnBasedCombatController {
 private:
   ScreenInteractive &screen;
@@ -515,6 +537,8 @@ private:
 
   vector<string> actions;
 
+  // Vykreslovaci metody pouze skladaji textovou obrazovku.
+  // Stejny princip se opakuje i u nepritele, mapy a praveho panelu.
   void DrawPlayer(Maps &map) {
     int x = 13;
     int y = 12;
@@ -615,6 +639,7 @@ private:
 
   void AddMessage(string text) { messages.push_back(text); }
 
+  // Zpravy se vypisuji pod sebe, aby hrac videl historii poslednich udalosti.
   Element RenderMessages() {
     vector<Element> rows;
 
@@ -644,6 +669,7 @@ private:
     return turn_state == TurnState::Victory || turn_state == TurnState::Defeat;
   }
 
+  // Kazda classa ma vlastni nazvy schopnosti a ceny energie.
   vector<string> CreateActionsForPlayer() {
     if (p.figure == 1) {
       return {"Utok", "Svaty uder (2 energie)", "Leceni (1 energie)"};
@@ -665,6 +691,7 @@ private:
   }
 
   void SelectNextLivingEnemy() {
+    // Pokud aktualni cil zemrel, vybereme prvniho ziveho nepritele.
     if (!HasLivingEnemies()) {
       return;
     }
@@ -682,6 +709,7 @@ private:
   }
 
   void SelectPreviousAction() {
+    // Pri pohybu nad prvni polozku se vyber pretoci na konec.
     selected_action--;
     if (selected_action < 0) {
       selected_action = actions.size() - 1;
@@ -689,6 +717,7 @@ private:
   }
 
   void SelectNextAction() {
+    // Pri pohybu pod posledni polozku se vyber pretoci na zacatek.
     selected_action++;
     if (selected_action >= actions.size()) {
       selected_action = 0;
@@ -732,6 +761,7 @@ private:
   void DamageSelectedEnemy(int damage, string action_name) {
     SelectNextLivingEnemy();
 
+    // Reference dovoluje upravovat primo konkretni monstrum ve vectoru.
     Monster &target = enemies[selected_enemy];
     target.hp -= damage;
     if (target.hp < 0) {
@@ -777,11 +807,13 @@ private:
   int GetEnemyDamage(Monster &enemy) {
     int damage = enemy.attack;
 
+    // Mini-boss ma kazdy druhy tah silnejsi utok.
     if (enemy.type == MonsterType::MiniBoss && enemy_turn_count % 2 == 0) {
       damage += 3;
       AddMessage(enemy.name + " pouziva silny uder.");
     }
 
+    // Hlavni boss po poklesu pod polovinu zivota zesili.
     if (enemy.type == MonsterType::FinalBoss && enemy.hp <= enemy.maxHp / 2) {
       damage += 4;
 
@@ -795,6 +827,7 @@ private:
   }
 
   void DrainEnergyByFinalBoss() {
+    // Specialni mechanika hlavniho bosse: ubira hraci energii.
     for (int i = 0; i < enemies.size(); i++) {
       if (IsEnemyAlive(i) && enemies[i].type == MonsterType::FinalBoss) {
         int old_energy = p.energy;
@@ -837,6 +870,8 @@ private:
   }
 
   bool UseAbility(int ability_number) {
+    // ability_number je index vybrane akce: 1 = prvni schopnost,
+    // 2 = druha schopnost. Kazda classa ma trochu jiny efekt.
     if (ability_number == 1 && p.figure == 1) {
       if (!p.spendEnergy(2)) {
         AddMessage("Nemas dost energie na Svaty uder.");
@@ -935,6 +970,7 @@ private:
       return;
     }
 
+    // Odmeny se davaji jen jednou po vyhre, proto rewards_given.
     rewards_given = true;
     int total_xp = 0;
     int total_gold = 0;
@@ -958,6 +994,7 @@ private:
     turn_state = TurnState::EnemyTurn;
     enemy_turn_count++;
 
+    // Kdyz po hracove akci nezustane zadny nepritel, souboj konci vyhrou.
     if (!HasLivingEnemies()) {
       if (final_boss_encounter) {
         AddMessage("Vyhral jsi celou hru. ESC = zpet do menu.");
@@ -998,6 +1035,7 @@ public:
         final_boss_encounter(final_boss_encounter) {
     actions = CreateActionsForPlayer();
 
+    // Proti mini-bossovi a hlavnim bossum zacina nepritel.
     if (enemies_start_first) {
       AddMessage("Nepratele zacinaji jako prvni.");
       EnemyTurn();
@@ -1010,6 +1048,7 @@ public:
   }
 
   bool OnEvent(Event event) {
+    // OnEvent zpracovava klavesy, ktere zachyti FTXUI CatchEvent().
     if (event == Event::Escape) {
       if (IsBattleFinished() &&
           (final_boss_encounter || turn_state == TurnState::Defeat)) {
@@ -1074,6 +1113,8 @@ public:
   }
 };
 
+// Hlavni menu ridi nekolik pod-obrazovek: hlavni nabidku, vyber postavy,
+// detail postavy, potvrzeni classy a navod.
 struct MainMenuController {
 private:
   enum class MenuState { MainMenu, Characters, CharacterDetail, ConfirmClass, Help };
@@ -1114,6 +1155,8 @@ private:
 
   Component container;
 
+  // Pomocne funkce pro vyber v menu. Kdyz hrac prejde za konec seznamu,
+  // kurzor se vrati na zacatek a opacne.
   void MoveSelectionUp(int &selected, int item_count) {
     selected--;
     if (selected < 0) {
@@ -1129,6 +1172,7 @@ private:
   }
 
   bool HandleMainMenu(Event event) {
+    // Nejdriv resime pohyb v menu, az potom potvrzeni pres ENTER.
     if (event == Event::ArrowUp) {
       MoveSelectionUp(main_selected, main_entries.size());
       return true;
@@ -1185,6 +1229,8 @@ private:
   }
 
   bool HandleCharacters(Event event) {
+    // Seznam postav funguje stejne jako hlavni menu: sipky meni vyber,
+    // ENTER otevre detail a ESC se vrati zpet.
     if (event == Event::ArrowUp) {
       MoveSelectionUp(char_selected, characters.size());
       return true;
@@ -1210,6 +1256,8 @@ private:
   }
 
   bool HandleCharacterDetail(Event event) {
+    // Detail postavy jen ukazuje statistiky a schopnosti. Skutecna volba
+    // classy se dela az na dalsi potvrzovaci obrazovce.
     if (event == Event::Return) {
       confirm_selected = 0;
       state = MenuState::ConfirmClass;
@@ -1225,6 +1273,7 @@ private:
   }
 
   bool HandleConfirmClass(Event event) {
+    // Potvrzeni classy oddeluje prohlizeni postavy od skutecne volby.
     if (event == Event::ArrowUp) {
       MoveSelectionUp(confirm_selected, confirm_entries.size());
       return true;
@@ -1265,6 +1314,7 @@ private:
   }
 
   bool HandleHelp(Event event) {
+    // Navod je pouze textova obrazovka, proto staci ESC zpet do menu.
     if (event == Event::Escape) {
       state = MenuState::MainMenu;
       return true;
@@ -1275,6 +1325,7 @@ private:
 
 public:
   MainMenuController(ScreenInteractive &screen) : screen(screen) {
+    // FTXUI menu komponenty drzi vybrane indexy a zpracovavaji fokus.
     main_menu = Menu(&main_entries, &main_selected);
     char_menu = Menu(&characters, &char_selected);
     confirm_menu = Menu(&confirm_entries, &confirm_selected);
@@ -1284,6 +1335,7 @@ public:
   Component GetContainer() { return container; }
 
   Element Render() {
+    // Podle aktualniho stavu menu se vykresli jina obrazovka.
     if (state == MenuState::MainMenu) {
       return vbox({text("=== HLAVNÍ MENU ===") | bold, main_menu->Render(),
                    text("ENTER = vybrat")}) |
@@ -1374,6 +1426,8 @@ public:
   }
 };
 
+// Vesnice slouzi jako obchod a odpocinkove misto. Hrac tady utraci zlato
+// za doplneni zivota/energie nebo za vylepseni statistik.
 struct VillageController {
 private:
   ScreenInteractive &screen;
@@ -1389,6 +1443,7 @@ private:
   string message = "Vesnice: vyber akci a potvrd ENTER.";
   bool continue_selected = false;
 
+  // Pretaceni vyberu ve vesnickem menu.
   void MoveSelectionUp() {
     selected--;
     if (selected < 0) {
@@ -1404,6 +1459,7 @@ private:
   }
 
   Element RenderPlayerStats() {
+    // Statistiky hrace se zobrazuji vlevo vedle nabidky nakupu.
     return vbox({text("Hrac: " + p.name) | bold,
                  text("HP: " + to_string(p.hp) + "/" + to_string(p.maxHp)),
                  text("Energie: " + to_string(p.energy) + "/" +
@@ -1417,6 +1473,7 @@ private:
   }
 
   bool TrySpendGold(int price) {
+    // Kontrola, ze hrac ma na nakup dost zlata.
     if (p.spendGold(price)) {
       return true;
     }
@@ -1463,6 +1520,8 @@ private:
   }
 
   void ContinueGame() {
+    // V pribehu tato volba posune hrace na dalsi encounter.
+    // Mimo pribeh se pouze vrati do menu.
     continue_selected = true;
     if (!story_mode_active) {
       result = AppState::Menu;
@@ -1471,6 +1530,7 @@ private:
   }
 
   void ExecuteSelectedAction() {
+    // Vybrana polozka menu urcuje, ktera vesnicka akce se provede.
     if (selected == 0) {
       ContinueGame();
       return;
@@ -1515,6 +1575,7 @@ public:
   }
 
   bool OnEvent(Event event) {
+    // Vesnice zpracovava sipky, ENTER a ESC podobne jako hlavni menu.
     if (event == Event::ArrowUp) {
       MoveSelectionUp();
       return true;
@@ -1540,6 +1601,8 @@ public:
   }
 };
 
+// Obalove funkce vytvori controller, napoji ho na FTXUI Renderer/CatchEvent
+// a spusti screen.Loop(), dokud dana obrazovka neskonci.
 void MainMenu(ScreenInteractive &screen) {
   MainMenuController menu(screen);
 
@@ -1552,7 +1615,9 @@ void MainMenu(ScreenInteractive &screen) {
   screen.Loop(component);
 }
 
-void AdvanceStoryEncounter(vector<Encounter> &game_path) { // posune hráče na další část příběhové cesty.
+// Posune hrace na dalsi cast pribehu a podle typu setkani nastavi dalsi
+// obrazovku: vesnici nebo tahovy souboj.
+void AdvanceStoryEncounter(vector<Encounter> &game_path) {
   if (!story_mode_active) {
     return;
   }
@@ -1575,6 +1640,7 @@ void AdvanceStoryEncounter(vector<Encounter> &game_path) { // posune hráče na 
 }
 
 void ActionCombat(ScreenInteractive &screen, player &p) {
+  // Konfigurace casovace pro akcni souboj.
   CombatTimerConfig timer_config;
   timer_config.enemy_tick_ms = 200;
   timer_config.enemy_shot_chance = 5;
@@ -1593,6 +1659,8 @@ void ActionCombat(ScreenInteractive &screen, player &p) {
 }
 
 vector<Monster> CreateCurrentTurnBasedEnemies(vector<Encounter> &game_path) {
+  // V pribehu se nepratele vytvori podle aktualniho encounteru.
+  // Mimo pribeh se pouzije testovaci souboj se dvema monstry.
   if (story_mode_active && current_encounter_index < game_path.size()) {
     return CreateEnemiesForEncounter(game_path[current_encounter_index]);
   }
@@ -1607,6 +1675,8 @@ bool IsCurrentFinalBossEncounter(vector<Encounter> &game_path) {
 }
 
 bool EnemiesStartCurrentEncounter(vector<Encounter> &game_path) {
+  // Podle zadani zacina hrac proti normalnim monstrum,
+  // ale proti mini-bossovi a hlavnim bossum zacinaji nepratele.
   if (!story_mode_active || current_encounter_index >= game_path.size()) {
     return false;
   }
@@ -1617,6 +1687,8 @@ bool EnemiesStartCurrentEncounter(vector<Encounter> &game_path) {
 
 void TurnBasedCombat(ScreenInteractive &screen, player &p,
                      vector<Encounter> &game_path) {
+  // Pred spustenim souboje si pripravime nepratele a pravidla aktualniho
+  // setkani, pak je predame controlleru.
   vector<Monster> enemies = CreateCurrentTurnBasedEnemies(game_path);
   bool final_boss_encounter = IsCurrentFinalBossEncounter(game_path);
   bool enemies_start_first = EnemiesStartCurrentEncounter(game_path);
@@ -1631,12 +1703,16 @@ void TurnBasedCombat(ScreenInteractive &screen, player &p,
 
   screen.Loop(component); // Dokud běží screen.Loop(component), hráč je uvnitř obrazovky souboje
 
+  // Po normalni vyhre v pribehu se presuneme na dalsi encounter.
+  // Pokud hrac stiskl ESC, result uz je Menu, tak se pribeh neposouva.
   if (story_mode_active && p.isAlive() && result == AppState::Combat) {
     AdvanceStoryEncounter(game_path);
   }
 }
 
 void Combat(ScreenInteractive &screen, player &p, vector<Encounter> &game_path) {
+  // Jedna vstupni funkce pro souboj rozhoduje, jestli pustit akcni
+  // nebo tahovy rezim.
   if (selected_combat_mode == CombatMode::TurnBased) {
     TurnBasedCombat(screen, p, game_path);
     return;
@@ -1646,6 +1722,7 @@ void Combat(ScreenInteractive &screen, player &p, vector<Encounter> &game_path) 
 }
 
 void Village(ScreenInteractive &screen, player &p, vector<Encounter> &game_path) {
+  // Vesnice si pamatuje, jestli hrac zvolil "Pokracovat dal".
   VillageController village(screen, p);
 
   Component renderer =
@@ -1662,6 +1739,7 @@ void Village(ScreenInteractive &screen, player &p, vector<Encounter> &game_path)
 }
 
 int main() {
+  // FTXUI obrazovka, nahodne cislo pro loot a priprava cele herni cesty.
   ScreenInteractive screen = ScreenInteractive::TerminalOutput();
   srand(time(nullptr));
 
@@ -1669,12 +1747,15 @@ int main() {
   player Player(selected_class);
   int active_player_class = selected_class;
 
+  // Hlavni smycka programu. Bezi, dokud result neni AppState::Exit.
   while (result != AppState::Exit) {
     if (active_player_class != selected_class) {
+      // Pri zmene classy vytvorime noveho hrace s novymi statistikami.
       Player = player(selected_class); // Vytvoř nový objekt typu player podle vybrané classy.
       active_player_class = selected_class;
     }
 
+    // Podle aktualniho AppState se spusti jedna konkretni obrazovka.
     switch (result) {
     case AppState::Menu:
       system("clear");
