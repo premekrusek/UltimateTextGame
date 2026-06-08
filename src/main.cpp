@@ -1114,7 +1114,31 @@ private:
 
   Component container;
 
+  void MoveSelectionUp(int &selected, int item_count) {
+    selected--;
+    if (selected < 0) {
+      selected = item_count - 1;
+    }
+  }
+
+  void MoveSelectionDown(int &selected, int item_count) {
+    selected++;
+    if (selected >= item_count) {
+      selected = 0;
+    }
+  }
+
   bool HandleMainMenu(Event event) {
+    if (event == Event::ArrowUp) {
+      MoveSelectionUp(main_selected, main_entries.size());
+      return true;
+    }
+
+    if (event == Event::ArrowDown) {
+      MoveSelectionDown(main_selected, main_entries.size());
+      return true;
+    }
+
     if (event != Event::Return) {
       return false;
     }
@@ -1161,6 +1185,16 @@ private:
   }
 
   bool HandleCharacters(Event event) {
+    if (event == Event::ArrowUp) {
+      MoveSelectionUp(char_selected, characters.size());
+      return true;
+    }
+
+    if (event == Event::ArrowDown) {
+      MoveSelectionDown(char_selected, characters.size());
+      return true;
+    }
+
     if (event == Event::Return) {
       state = MenuState::CharacterDetail;
       return true;
@@ -1191,6 +1225,16 @@ private:
   }
 
   bool HandleConfirmClass(Event event) {
+    if (event == Event::ArrowUp) {
+      MoveSelectionUp(confirm_selected, confirm_entries.size());
+      return true;
+    }
+
+    if (event == Event::ArrowDown) {
+      MoveSelectionDown(confirm_selected, confirm_entries.size());
+      return true;
+    }
+
     if (event == Event::Escape) {
       state = MenuState::CharacterDetail;
       return true;
@@ -1345,6 +1389,20 @@ private:
   string message = "Vesnice: vyber akci a potvrd ENTER.";
   bool continue_selected = false;
 
+  void MoveSelectionUp() {
+    selected--;
+    if (selected < 0) {
+      selected = entries.size() - 1;
+    }
+  }
+
+  void MoveSelectionDown() {
+    selected++;
+    if (selected >= entries.size()) {
+      selected = 0;
+    }
+  }
+
   Element RenderPlayerStats() {
     return vbox({text("Hrac: " + p.name) | bold,
                  text("HP: " + to_string(p.hp) + "/" + to_string(p.maxHp)),
@@ -1457,6 +1515,16 @@ public:
   }
 
   bool OnEvent(Event event) {
+    if (event == Event::ArrowUp) {
+      MoveSelectionUp();
+      return true;
+    }
+
+    if (event == Event::ArrowDown) {
+      MoveSelectionDown();
+      return true;
+    }
+
     if (event == Event::Escape) {
       result = AppState::Menu;
       screen.Exit();
