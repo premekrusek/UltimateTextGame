@@ -479,6 +479,7 @@ private:
   int selected_action = 0;
   bool battle_finished = false;
   bool rewards_given = false;
+  bool final_boss_encounter = false;
   string message = "Tahovy boj pripraven. ESC = navrat do menu.";
 
   vector<string> actions = {"Utok", "Schopnost 1", "Schopnost 2"};
@@ -725,7 +726,11 @@ private:
 
   void EnemyTurn() {
     if (!HasLivingEnemies()) {
-      message = message + " Vyhral jsi souboj.";
+      if (final_boss_encounter) {
+        message = message + " Vyhral jsi celou hru. ESC = zpet do menu.";
+      } else {
+        message = message + " Vyhral jsi souboj.";
+      }
       GiveRewards();
       battle_finished = true;
       return;
@@ -743,15 +748,16 @@ private:
               " poskozeni.";
 
     if (!p.isAlive()) {
-      message = message + " Byl jsi porazen. ENTER = konec hry.";
+      message = message + " Prohral jsi. ESC = zpet do menu.";
       battle_finished = true;
     }
   }
 
 public:
   TurnBasedCombatController(ScreenInteractive &screen, player &p,
-                            vector<Monster> enemies)
-      : screen(screen), p(p), enemies(enemies) {}
+                            vector<Monster> enemies, bool final_boss_encounter)
+      : screen(screen), p(p), enemies(enemies),
+        final_boss_encounter(final_boss_encounter) {}
 
   Element Render() {
     return vbox({hbox({RenderMap(), separator(), RenderSidePanel()}),
@@ -760,15 +766,24 @@ public:
 
   bool OnEvent(Event event) {
     if (event == Event::Escape) {
+      if (battle_finished && (final_boss_encounter || !p.isAlive())) {
+        story_mode_active = false;
+      }
       result = AppState::Menu;
       screen.Exit();
       return true;
     }
 
     if (battle_finished) {
+      if (final_boss_encounter || !p.isAlive()) {
+        return false;
+      }
+
       if (event == Event::Return) {
         if (p.isAlive()) {
-          result = AppState::Menu;
+          if (!story_mode_active) {
+            result = AppState::Menu;
+          }
           screen.Exit();
           return true;
         }
@@ -976,13 +991,15 @@ private:
   ScreenInteractive &screen;
   player &p;
 
-  vector<string> entries = {"Doplnit zivoty a energii - 5 zlata",
+  vector<string> entries = {"Pokracovat dal",
+                            "Doplnit zivoty a energii - 5 zlata",
                             "Vylepsit max zivoty - 10 zlata",
                             "Vylepsit max energii - 10 zlata",
-                            "Vylepsit utok - 15 zlata", "Pokracovat dal"};
+                            "Vylepsit utok - 15 zlata"};
   int selected = 0;
   Component menu;
   string message = "Vesnice: vyber akci a potvrd ENTER.";
+  bool continue_selected = false;
 
   Element RenderPlayerStats() {
     return vbox({text("Hrac: " + p.name) | bold,
@@ -1042,33 +1059,36 @@ private:
   }
 
   void ContinueGame() {
-    result = AppState::Menu;
+    continue_selected = true;
+    if (!story_mode_active) {
+      result = AppState::Menu;
+    }
     screen.Exit();
   }
 
   void ExecuteSelectedAction() {
     if (selected == 0) {
-      RestorePlayer();
+      ContinueGame();
       return;
     }
 
     if (selected == 1) {
-      UpgradeMaxHp();
+      RestorePlayer();
       return;
     }
 
     if (selected == 2) {
-      UpgradeMaxEnergy();
+      UpgradeMaxHp();
       return;
     }
 
     if (selected == 3) {
-      UpgradeAttack();
+      UpgradeMaxEnergy();
       return;
     }
 
     if (selected == 4) {
-      ContinueGame();
+      UpgradeAttack();
     }
   }
 
@@ -1079,6 +1099,8 @@ public:
   }
 
   Component GetContainer() { return menu; }
+
+  bool ShouldContinueStory() { return continue_selected; }
 
   Element Render() {
     return vbox({text("=== VESNICE ===") | bold,
@@ -1124,7 +1146,7 @@ void AdvanceStoryEncounter(vector<Encounter> &game_path) { // posune hráče na 
   current_encounter_index++;
   if (current_encounter_index >= game_path.size()) {
     story_mode_active = false;
-    result = AppState::Exit;
+    result = AppState::Menu;
     return;
   }
 
@@ -1165,10 +1187,16 @@ vector<Monster> CreateCurrentTurnBasedEnemies(vector<Encounter> &game_path) {
   return CreateEnemiesForEncounter(test_encounter);
 }
 
+bool IsCurrentFinalBossEncounter(vector<Encounter> &game_path) {
+  return story_mode_active && current_encounter_index < game_path.size() &&
+         game_path[current_encounter_index].getType() == EncounterType::FinalBoss;
+}
+
 void TurnBasedCombat(ScreenInteractive &screen, player &p,
                      vector<Encounter> &game_path) {
   vector<Monster> enemies = CreateCurrentTurnBasedEnemies(game_path);
-  TurnBasedCombatController combat(screen, p, enemies);
+  bool final_boss_encounter = IsCurrentFinalBossEncounter(game_path);
+  TurnBasedCombatController combat(screen, p, enemies, final_boss_encounter);
 
   Component empty = Container::Vertical({});
   Component renderer = Renderer(empty, [&] { return combat.Render(); });
@@ -1178,7 +1206,7 @@ void TurnBasedCombat(ScreenInteractive &screen, player &p,
 
   screen.Loop(component); // Dokud běží screen.Loop(component), hráč je uvnitř obrazovky souboje
 
-  if (story_mode_active && p.isAlive()) {
+  if (story_mode_active && p.isAlive() && result == AppState::Combat) {
     AdvanceStoryEncounter(game_path);
   }
 }
@@ -1203,7 +1231,7 @@ void Village(ScreenInteractive &screen, player &p, vector<Encounter> &game_path)
 
   screen.Loop(component);
 
-  if (story_mode_active) {
+  if (story_mode_active && village.ShouldContinueStory()) {
     AdvanceStoryEncounter(game_path);
   }
 }
