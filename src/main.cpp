@@ -311,6 +311,22 @@ struct player {
     energy = maxEnergy;
   }
 
+  bool spendEnergy(int amount) {
+    if (energy < amount) {
+      return false;
+    }
+
+    energy -= amount;
+    return true;
+  }
+
+  void heal(int amount) {
+    hp += amount;
+    if (hp > maxHp) {
+      hp = maxHp;
+    }
+  }
+
   void upgradeMaxHp(int amount) {
     maxHp += amount;
     hp = maxHp;
@@ -484,7 +500,7 @@ private:
   bool final_boss_encounter = false;
   vector<string> messages = {"Tahovy boj pripraven. ESC = navrat do menu."};
 
-  vector<string> actions = {"Utok", "Schopnost 1", "Schopnost 2"};
+  vector<string> actions;
 
   void DrawPlayer(Maps &map) {
     int x = 13;
@@ -614,6 +630,26 @@ private:
     return turn_state == TurnState::Victory || turn_state == TurnState::Defeat;
   }
 
+  vector<string> CreateActionsForPlayer() {
+    if (p.figure == 1) {
+      return {"Utok", "Svaty uder (2 energie)", "Leceni (1 energie)"};
+    }
+
+    if (p.figure == 2) {
+      return {"Utok", "Ohnivy sip (2 energie)", "Rychla strela (3 energie)"};
+    }
+
+    if (p.figure == 3) {
+      return {"Utok", "Fireball (4 energie)", "Magicky stit (2 energie)"};
+    }
+
+    if (p.figure == 4) {
+      return {"Utok", "Kletba (3 energie)", "Vysati zivota (2 energie)"};
+    }
+
+    return {"Utok", "Silny utok (2 energie)", "Leceni (2 energie)"};
+  }
+
   void SelectNextLivingEnemy() {
     if (!HasLivingEnemies()) {
       return;
@@ -679,6 +715,51 @@ private:
     }
   }
 
+  void DamageSelectedEnemy(int damage, string action_name) {
+    SelectNextLivingEnemy();
+
+    Monster &target = enemies[selected_enemy];
+    target.hp -= damage;
+    if (target.hp < 0) {
+      target.hp = 0;
+    }
+
+    AddMessage(p.name + " pouziva " + action_name + " na " + target.name +
+               " za " + to_string(damage) + " poskozeni.");
+
+    if (target.hp == 0) {
+      AddMessage(target.name + " byl porazen.");
+      SelectNextLivingEnemy();
+    }
+  }
+
+  void DamageAllEnemies(int damage, string action_name) {
+    AddMessage(p.name + " pouziva " + action_name + " za " +
+               to_string(damage) + " poskozeni vsem nepratelum.");
+
+    for (int i = 0; i < enemies.size(); i++) {
+      if (IsEnemyAlive(i)) {
+        enemies[i].hp -= damage;
+        if (enemies[i].hp < 0) {
+          enemies[i].hp = 0;
+        }
+
+        if (enemies[i].hp == 0) {
+          AddMessage(enemies[i].name + " byl porazen.");
+        }
+      }
+    }
+
+    SelectNextLivingEnemy();
+  }
+
+  void HealPlayer(int amount, string action_name) {
+    int old_hp = p.hp;
+    p.heal(amount);
+    AddMessage(p.name + " pouziva " + action_name + ". HP: " +
+               to_string(old_hp) + " => " + to_string(p.hp) + ".");
+  }
+
   bool PlayerAttack() {
     if (!HasLivingEnemies()) {
       AddMessage("Vsichni nepratele uz byli porazeni.");
@@ -705,6 +786,87 @@ private:
     return true;
   }
 
+  bool UseAbility(int ability_number) {
+    if (ability_number == 1 && p.figure == 1) {
+      if (!p.spendEnergy(2)) {
+        AddMessage("Nemas dost energie na Svaty uder.");
+        return false;
+      }
+      DamageAllEnemies(2, "Svaty uder");
+      return true;
+    }
+
+    if (ability_number == 2 && p.figure == 1) {
+      if (!p.spendEnergy(1)) {
+        AddMessage("Nemas dost energie na Leceni.");
+        return false;
+      }
+      HealPlayer(5, "Leceni");
+      return true;
+    }
+
+    if (ability_number == 1 && p.figure == 2) {
+      if (!p.spendEnergy(2)) {
+        AddMessage("Nemas dost energie na Ohnivy sip.");
+        return false;
+      }
+      DamageSelectedEnemy(p.attack_dmg + 3, "Ohnivy sip");
+      return true;
+    }
+
+    if (ability_number == 2 && p.figure == 2) {
+      if (!p.spendEnergy(3)) {
+        AddMessage("Nemas dost energie na Rychlou strelu.");
+        return false;
+      }
+      DamageSelectedEnemy(p.attack_dmg, "Rychla strela");
+      if (HasLivingEnemies()) {
+        DamageSelectedEnemy(p.attack_dmg, "Rychla strela");
+      }
+      return true;
+    }
+
+    if (ability_number == 1 && p.figure == 3) {
+      if (!p.spendEnergy(4)) {
+        AddMessage("Nemas dost energie na Fireball.");
+        return false;
+      }
+      DamageAllEnemies(p.attack_dmg + 2, "Fireball");
+      return true;
+    }
+
+    if (ability_number == 2 && p.figure == 3) {
+      if (!p.spendEnergy(2)) {
+        AddMessage("Nemas dost energie na Magicky stit.");
+        return false;
+      }
+      HealPlayer(3, "Magicky stit");
+      return true;
+    }
+
+    if (ability_number == 1 && p.figure == 4) {
+      if (!p.spendEnergy(3)) {
+        AddMessage("Nemas dost energie na Kletbu.");
+        return false;
+      }
+      DamageAllEnemies(3, "Kletba");
+      return true;
+    }
+
+    if (ability_number == 2 && p.figure == 4) {
+      if (!p.spendEnergy(2)) {
+        AddMessage("Nemas dost energie na Vysati zivota.");
+        return false;
+      }
+      DamageSelectedEnemy(p.attack_dmg + 1, "Vysati zivota");
+      HealPlayer(3, "Vysati zivota");
+      return true;
+    }
+
+    AddMessage("Tato schopnost neni pro tuto classu dostupna.");
+    return false;
+  }
+
   bool ExecuteSelectedAction() {
     if (IsBattleFinished() || turn_state != TurnState::PlayerTurn) {
       return false;
@@ -714,8 +876,7 @@ private:
       return PlayerAttack();
     }
 
-    AddMessage("Tato schopnost zatim neni implementovana.");
-    return false;
+    return UseAbility(selected_action);
   }
 
   void GiveRewards() {
@@ -781,6 +942,8 @@ public:
                             bool enemies_start_first)
       : screen(screen), p(p), enemies(enemies),
         final_boss_encounter(final_boss_encounter) {
+    actions = CreateActionsForPlayer();
+
     if (enemies_start_first) {
       AddMessage("Nepratele zacinaji jako prvni.");
       EnemyTurn();
@@ -876,13 +1039,17 @@ private:
 
   vector<string> descriptions = {
       "Paladin\nHP: 100\nEnergy: 100\nDMG: 3\n\nSchopnosti:\n- Svaty uder\n- "
-      "Leceni",
+      "Leceni\n\nSvaty uder: 2 poskozeni vsem nepratelum, stoji 2 energie.\n"
+      "Leceni: obnovi 5 HP, stoji 1 energii.",
       "Lovec\nHP: 100\nEnergy: 100\nDMG: 4\n\nSchopnosti:\n- Ohnivy sip\n- "
-      "Rychla strela",
+      "Rychla strela\n\nOhnivy sip: silny utok na jeden cil, stoji 2 "
+      "energie.\nRychla strela: dva utoky po sobe, stoji 3 energie.",
       "Mag\nHP: 100\nEnergy: 100\nDMG: 2\n\nSchopnosti:\n- Fireball\n- "
-      "Teleport",
-      "Warlock\nHP: 100\nEnergy: 100\nDMG: 3\n\nSchopnosti:\n- (zatim "
-      "nedefinovano)\n- (zatim nedefinovano)"};
+      "Magicky stit\n\nFireball: poskozeni vsem nepratelum, stoji 4 "
+      "energie.\nMagicky stit: obnovi 3 HP, stoji 2 energie.",
+      "Warlock\nHP: 100\nEnergy: 100\nDMG: 3\n\nSchopnosti:\n- Kletba\n- "
+      "Vysati zivota\n\nKletba: 3 poskozeni vsem nepratelum, stoji "
+      "3 energie.\nVysati zivota: poskodi cil a leci hrace, stoji 2 energie."};
 
   Component container;
 
