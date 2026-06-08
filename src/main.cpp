@@ -1083,6 +1083,7 @@ private:
   vector<string> confirm_entries = {"Potvrdit", "Vybrat jinou"};
   int confirm_selected = 0;
   Component confirm_menu;
+  bool start_story_after_class_confirm = false;
 
   vector<string> descriptions = {
       "Paladin\nHP: 100\nEnergy: 100\nDMG: 3\n\nSchopnosti:\n- Svaty uder\n- "
@@ -1106,11 +1107,8 @@ private:
     }
 
     if (main_selected == 0) {
-      story_mode_active = true;
-      current_encounter_index = 0;
-      selected_combat_mode = CombatMode::Action;
-      result = AppState::Village;
-      screen.Exit();
+      start_story_after_class_confirm = true;
+      state = MenuState::Characters;
       return true;
     }
 
@@ -1130,6 +1128,7 @@ private:
     }
 
     if (main_selected == 3) {
+      start_story_after_class_confirm = false;
       state = MenuState::Characters;
       return true;
     }
@@ -1150,6 +1149,7 @@ private:
     }
 
     if (event == Event::Escape) {
+      start_story_after_class_confirm = false;
       state = MenuState::MainMenu;
       return true;
     }
@@ -1184,6 +1184,16 @@ private:
 
     if (confirm_selected == 0) {
       selected_class = char_selected + 1;
+
+      if (start_story_after_class_confirm) {
+        story_mode_active = true;
+        current_encounter_index = 0;
+        selected_combat_mode = CombatMode::Action;
+        result = AppState::Village;
+        screen.Exit();
+        return true;
+      }
+
       state = MenuState::MainMenu;
       return true;
     }
@@ -1210,7 +1220,12 @@ public:
     }
 
     if (state == MenuState::Characters) {
-      return vbox({text("=== POSTAVY ===") | bold, char_menu->Render(),
+      string title = "=== POSTAVY ===";
+      if (start_story_after_class_confirm) {
+        title = "=== VYBER POSTAVU PRO PRIBEH ===";
+      }
+
+      return vbox({text(title) | bold, char_menu->Render(),
                    text("ENTER = vybrat | ESC = zpět")}) |
              border;
     }
