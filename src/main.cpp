@@ -480,7 +480,7 @@ private:
   bool battle_finished = false;
   bool rewards_given = false;
   bool final_boss_encounter = false;
-  string message = "Tahovy boj pripraven. ESC = navrat do menu.";
+  vector<string> messages = {"Tahovy boj pripraven. ESC = navrat do menu."};
 
   vector<string> actions = {"Utok", "Schopnost 1", "Schopnost 2"};
 
@@ -581,6 +581,18 @@ private:
            border;
   }
 
+  void AddMessage(string text) { messages.push_back(text); }
+
+  Element RenderMessages() {
+    vector<Element> rows;
+
+    for (int i = 0; i < messages.size(); i++) {
+      rows.push_back(text(messages[i]));
+    }
+
+    return vbox(rows) | border;
+  }
+
   bool IsEnemyAlive(int enemy_index) {
     return enemy_index >= 0 && enemy_index < enemies.size() &&
            enemies[enemy_index].hp > 0;
@@ -663,7 +675,7 @@ private:
 
   bool PlayerAttack() {
     if (!HasLivingEnemies()) {
-      message = "Vsichni nepratele uz byli porazeni.";
+      AddMessage("Vsichni nepratele uz byli porazeni.");
       battle_finished = true;
       return false;
     }
@@ -676,11 +688,11 @@ private:
       target.hp = 0;
     }
 
-    message = p.name + " utoci na " + target.name + " za " +
-              to_string(p.attack_dmg) + " poskozeni.";
+    AddMessage(p.name + " utoci na " + target.name + " za " +
+               to_string(p.attack_dmg) + " poskozeni.");
 
     if (target.hp == 0) {
-      message = message + " " + target.name + " byl porazen.";
+      AddMessage(target.name + " byl porazen.");
       SelectNextLivingEnemy();
     }
 
@@ -696,7 +708,7 @@ private:
       return PlayerAttack();
     }
 
-    message = "Tato schopnost zatim neni implementovana.";
+    AddMessage("Tato schopnost zatim neni implementovana.");
     return false;
   }
 
@@ -720,16 +732,16 @@ private:
     p.addGold(total_gold);
     string level_message = p.addXp(total_xp);
 
-    message = message + " Ziskavas " + to_string(total_xp) + " XP a " +
-              to_string(total_gold) + " zlata." + level_message;
+    AddMessage("Ziskavas " + to_string(total_xp) + " XP a " +
+               to_string(total_gold) + " zlata." + level_message);
   }
 
   void EnemyTurn() {
     if (!HasLivingEnemies()) {
       if (final_boss_encounter) {
-        message = message + " Vyhral jsi celou hru. ESC = zpet do menu.";
+        AddMessage("Vyhral jsi celou hru. ESC = zpet do menu.");
       } else {
-        message = message + " Vyhral jsi souboj.";
+        AddMessage("Vyhral jsi souboj.");
       }
       GiveRewards();
       battle_finished = true;
@@ -744,11 +756,10 @@ private:
     }
 
     p.takeDamage(total_damage);
-    message = message + " Nepratele utoci za " + to_string(total_damage) +
-              " poskozeni.";
+    AddMessage("Nepratele utoci za " + to_string(total_damage) + " poskozeni.");
 
     if (!p.isAlive()) {
-      message = message + " Prohral jsi. ESC = zpet do menu.";
+      AddMessage("Prohral jsi. ESC = zpet do menu.");
       battle_finished = true;
     }
   }
@@ -761,7 +772,7 @@ public:
 
   Element Render() {
     return vbox({hbox({RenderMap(), separator(), RenderSidePanel()}),
-                 text(message) | border});
+                 RenderMessages()});
   }
 
   bool OnEvent(Event event) {
