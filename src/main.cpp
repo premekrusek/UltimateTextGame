@@ -1076,13 +1076,13 @@ public:
 
 struct MainMenuController {
 private:
-  enum class MenuState { MainMenu, Characters, CharacterDetail, ConfirmClass };
+  enum class MenuState { MainMenu, Characters, CharacterDetail, ConfirmClass, Help };
 
   ScreenInteractive &screen;
   MenuState state = MenuState::MainMenu;
 
   vector<string> main_entries = {"Pokracovat pribehem", "Akcni souboj",
-                                 "Vesnice", "Postavy", "Konec"};
+                                 "Vesnice", "Postavy", "Navod", "Konec"};
   int main_selected = 0;
   Component main_menu;
 
@@ -1147,6 +1147,11 @@ private:
     }
 
     if (main_selected == 4) {
+      state = MenuState::Help;
+      return true;
+    }
+
+    if (main_selected == 5) {
       result = AppState::Exit;
       screen.Exit();
       return true;
@@ -1215,6 +1220,15 @@ private:
     return true;
   }
 
+  bool HandleHelp(Event event) {
+    if (event == Event::Escape) {
+      state = MenuState::MainMenu;
+      return true;
+    }
+
+    return false;
+  }
+
 public:
   MainMenuController(ScreenInteractive &screen) : screen(screen) {
     main_menu = Menu(&main_entries, &main_selected);
@@ -1258,6 +1272,36 @@ public:
              border;
     }
 
+    if (state == MenuState::Help) {
+      return vbox(
+                 {text("=== NAVOD ===") | bold,
+                  text("Cil hry: projit pribehem, porazit monstra, mini-bosse "
+                       "a hlavniho bosse."),
+                  separator(), text("Hlavni menu:"),
+                  text("- Pokracovat pribehem: vyberes postavu a zacnes ve "
+                       "vesnici."),
+                  text("- Akcni souboj: samostatny souboj s nepritelem na "
+                       "casovac."),
+                  text("- Vesnice: samostatna vesnice pro vyzkouseni nakupu."),
+                  text("- Postavy: prohlizeni a potvrzeni classy."),
+                  separator(), text("Pribeh:"),
+                  text("- Pribeh strida vesnice a tahove souboje."),
+                  text("- Ve vesnici zvol Pokracovat dal pro dalsi setkani."),
+                  text("- ESC vraci z vesnice nebo souboje do hlavniho menu."),
+                  separator(), text("Tahovy souboj:"),
+                  text("- Sipka nahoru/dolu vybira akci."),
+                  text("- Sipka vlevo/vpravo vybira nepritele."),
+                  text("- ENTER provede vybranou akci."),
+                  text("- Proti monstrum zacina hrac, proti bossum nepratele."),
+                  text("- Schopnosti stoji energii."),
+                  separator(), text("Vesnice:"),
+                  text("- Za zlato doplnis zivoty a energii nebo vylepsis "
+                       "statistiky."),
+                  text("- Kdyz nemas dost zlata, hra nakup neprovede."),
+                  separator(), text("ESC = zpet do hlavniho menu")}) |
+             border;
+    }
+
     return text("Chyba v menu");
   }
 
@@ -1276,6 +1320,10 @@ public:
 
     if (state == MenuState::ConfirmClass) {
       return HandleConfirmClass(event);
+    }
+
+    if (state == MenuState::Help) {
+      return HandleHelp(event);
     }
 
     return false;
