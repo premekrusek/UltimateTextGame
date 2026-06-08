@@ -1073,8 +1073,7 @@ private:
   MenuState state = MenuState::MainMenu;
 
   vector<string> main_entries = {"Pokracovat pribehem", "Akcni souboj",
-                                 "Tahovy souboj", "Vesnice", "Postavy",
-                                 "Konec"};
+                                 "Vesnice", "Postavy", "Konec"};
   int main_selected = 0;
   Component main_menu;
 
@@ -1125,25 +1124,17 @@ private:
 
     if (main_selected == 2) {
       story_mode_active = false;
-      selected_combat_mode = CombatMode::TurnBased;
-      result = AppState::Combat;
-      screen.Exit();
-      return true;
-    }
-
-    if (main_selected == 3) {
-      story_mode_active = false;
       result = AppState::Village;
       screen.Exit();
       return true;
     }
 
-    if (main_selected == 4) {
+    if (main_selected == 3) {
       state = MenuState::Characters;
       return true;
     }
 
-    if (main_selected == 5) {
+    if (main_selected == 4) {
       result = AppState::Exit;
       screen.Exit();
       return true;
